@@ -20,7 +20,7 @@ void init_nes(nes* NES, char* game){
 	/*load the file and it's contents*/
 	char temp[24];
 	loadcart(&(NES->cart),game);
-	memset(NES, 0, sizeof(NES));
+	memset(NES, 0, sizeof(nes));
 	cpu_init(&(NES->CPU));
 	registermem(&((NES->CPU).cpumap[0]),2048,0x0000,NES->CPU.RAM);
 	registermem(&(NES->CPU.cpumap[1]),8,0x2000,0x0);
