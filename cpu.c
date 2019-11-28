@@ -15,98 +15,121 @@
 #define PF (CPU->P)	//Flag register
 
 //Variables to transfer data and do operations 
-unsigned char byte1,byte2,byte3;
-uint16_t word1,word2;
-//byte1 and word1 usually will hold memory addresses
-//word2 and byte2 usually hold data to operate on or transfer
-//byte1 turned out to be useless and byte1 was sufficient to address
-//would be taken care of in later revisions
-/****************Macros for easy r/w*******************/
+static unsigned char byte1,byte2,memory_val,opcode;
+uint16_t word1,word2,curr_addr;
+static unsigned int clock_check=0;
+typedef enum addr_mode{
+	IMPLIED,
+	ZEROPAGE,
+	ZEROPAGEX,
+	ZEROPAGEY,
+	ABSOLUTE,
+	ABSOLUTEX,
+	ABSOLUTEY,
+	INDEXINDIR,
+	INDIRINDEX
+} mode;
 
-#define READB(addr) cpureadb(&(CPU->cpumap),addr);
-#define READW(addr) cpureadw(&(CPU->cpumap),addr);
-#define READZW(addr) zpcpureadw(&(CPU->cpumap),addr);
-#define WRITEB(addr,data) cpuwriteb(&(CPU->cpumap),addr,data);
+/*****************ClockFunctions******************************/
+#define INCCLOCK CPU->clockcount++;
+#define DECCLOCK CPU->clockcount--;
+
+
+//byte1, byte2, word1 and word2 are all temporary variables
+/****************Macros for easy r/w operations*******************/
+
+#define READMEMVAR() memory_val = cpureadb(&(CPU->cpumap),curr_addr);
+#define WRITEMEMVAR() cpuwriteb(&(CPU->cpumap),curr_addr,memory_val);
+#define READBYTE(addr) cpureadb(&(CPU->cpumap),addr);
+#define READWORD(addr) cpureadw(&(CPU->cpumap),addr);
+#define READZEROWRAP(addr) zpcpureadw(&(CPU->cpumap),addr);
+#define WRITEBYTE(addr,data) cpuwriteb(&(CPU->cpumap),addr,data);
 #define WRITEW(addr,data) cpuwritew(&(CPU->cpumap),addr,data);
 #define WRITEZW(addr,data) zpcpuwritew(&(CPU->cpumap),addr,data);
-//writes the byte2 to byte1 address
-#define WRITEBB() cpuwriteb(&(CPU->cpumap),byte1,byte2);
-#define WRITEWB() cpuwritew(&(CPU->cpumap),byte1,word2);
-#define WRITEBW() cpuwriteb(&(CPU->cpumap),word1,byte2);
-#define WRITEWW() cpuwritew(&(CPU->cpumap),word1,word2);
+#define WRITEBB() cpuwriteb(&(CPU->cpumap),curr_addr,byte2);
+#define WRITEWB() cpuwritew(&(CPU->cpumap),curr_addr,curr_addr);
+#define WRITEBW() cpuwriteb(&(CPU->cpumap),curr_addr,byte2);
+#define WRITEWW() cpuwritew(&(CPU->cpumap),curr_addr,curr_addr);
 
 /******************Addressing modes********************/
 
 void zp(cpu* CPU){				 //zero page
-	byte1=READB(PC++);
-	byte2=READB(byte1);
+	curr_addr=READBYTE(PC++);
 	if(DEBUG) printf("%02X         A:%02X X:%02X Y:%02X PF:%02X ST:%02X",
 		byte1,AC,XR,YR,PF,ST);
 }
 void zpx(cpu* CPU){				//Indexed Zero Page
-	byte1=READB(PC++);
-	byte1+=XR;
-	byte2=READB(byte1);
+	curr_addr=READBYTE(PC++);
+	curr_addr=(unsigned char)(curr_addr + XR);
 	if(DEBUG) printf("%02X         A:%02X X:%02X Y:%02X PF:%02X ST:%02X",
 		byte1,AC,XR,YR,PF,ST);
 }
 
 void zpy(cpu* CPU){				//Indexed Zero Page with Y
-	byte1=READB(PC++);
-	byte1+=YR;
-	byte2=READB(byte1);
+	curr_addr=READBYTE(PC++);
+	curr_addr=(unsigned char)(curr_addr + YR);
 	if(DEBUG) printf("%02X         A:%02X X:%02X Y:%02X PF:%02X ST:%02X",
 		byte1,AC,XR,YR,PF,ST);
 }
 
 void ab(cpu* CPU){				//Absolute addressing
-	word1=READW(PC);
-	byte2=READB(word1);
+	curr_addr=READWORD(PC);
 	PC+=2;
 	if(DEBUG) printf("%02X %02X      A:%02X X:%02X Y:%02X PF:%02X ST:%02X",
 		(word1 & 0x00ff),(word1 & 0xff00)>>8,AC,XR,YR,PF,ST);
 }
 
 void abx(cpu* CPU){				//Absolute addressing indexed with X
-	word1=READW(PC);
-	word1+=XR;
-	byte2=READB(word1);
+	curr_addr=READWORD(PC);
+	word1=(curr_addr + XR);
+	if(((curr_addr & 0xFF00) != (word1 & 0xFF00))){
+		INCCLOCK;
+		clock_check++;
+	}
+	curr_addr=word1;
 	PC+=2;
 	if(DEBUG) printf("%02X %02X      A:%02X X:%02X Y:%02X PF:%02X ST:%02X",
 		(word1 & 0x00ff),(word1 & 0xff00)>>8,AC,XR,YR,PF,ST);
 }
 
 void aby(cpu* CPU){				//Absolute addressing indexed with Y
-	word1=READW(PC);
-	word1+=YR;
-	byte2=READB(word1);
+	curr_addr=READWORD(PC);
+	word1=(curr_addr + YR);
+	if(((curr_addr & 0xFF00) != (word1 & 0xFF00))){
+		INCCLOCK;
+		clock_check++;
+	}
+	curr_addr=word1;
 	PC+=2;
 	if(DEBUG) printf("%02X %02X      A:%02X X:%02X Y:%02X PF:%02X ST:%02X",
 		(word1 & 0x00ff),(word1 & 0xff00)>>8,AC,XR,YR,PF,ST);
 }
 
 void im(cpu* CPU){				//Immediate addressing
-	byte2=READB(PC++);
+	curr_addr=(PC++);
 	if(DEBUG) printf("%02X         A:%02X X:%02X Y:%02X PF:%02X ST:%02X",
 		byte2,AC,XR,YR,PF,ST);
 }
 
 void xi(cpu* CPU){				//Indexed Indirect
-	byte3=READB(PC++);
-	byte3 = byte3 + XR;
-	word1=READZW(byte3);
-	byte2=READB(word1);
+	byte1=READBYTE(PC++);
+	byte1 = byte1 + XR;
+	curr_addr=READZEROWRAP(byte1);
 	if(DEBUG) printf("%02X         A:%02X X:%02X Y:%02X PF:%02X ST:%02X",
-		byte3,AC,XR,YR,PF,ST);
+		byte1,AC,XR,YR,PF,ST);
 }
 
 void ix(cpu* CPU){				//Indirect Indexed
-	byte3=READB(PC++);
-	word1=READZW(byte3);
-	word1 = word1 + YR;
-	byte2=READB(word1);
+	byte1=READBYTE(PC++);
+	curr_addr=READZEROWRAP(byte1);
+	word1=(curr_addr + YR);
+	if(((curr_addr & 0xFF00) != (word1 & 0xFF00))){
+		INCCLOCK;
+		clock_check++;
+	}
+	curr_addr=word1;
 	if(DEBUG) printf("%02X         A:%02X X:%02X Y:%02X PF:%02X ST:%02X",
-		byte3,AC,XR,YR,PF,ST);
+		byte1,AC,XR,YR,PF,ST);
 }
 
 #define ZP() 	zp(CPU);
@@ -156,7 +179,6 @@ void setznflag(cpu* CPU, int value){
 #define TSTFLAG(c,f) test_flag(CPU,c,f);
 #define SETZN(f) setznflag(CPU,f);
 
-void cyclecountsomething(){}; //not umplemented
 
 /*****************MISC Functions and Macros**********************/
 //interrupt locations
@@ -166,6 +188,8 @@ void cyclecountsomething(){}; //not umplemented
 //Functions to help in code
 #define PUSH(data) push(CPU, data);
 #define POP() pop(CPU);
+#define RJ(condition) rjump(CPU,condition);
+
 void push(cpu *CPU, char data){
 	cpuwriteb(&(CPU->cpumap), ST + 0x100, data);
 	ST--;
@@ -173,44 +197,68 @@ void push(cpu *CPU, char data){
 
 unsigned char pop(cpu *CPU){
 	ST++;
-	byte2=cpureadb(&(CPU->cpumap), ST + 0x100);
-	return byte2;
-}
-void rjump(cpu* CPU, int condition){
-	byte2=READB(PC++);
-	if(condition){
-		if(byte2 & 0x80)
-			PC=PC - (0x80 - (byte2 & 0x7F));
-		else
-			PC=PC+byte2;
-	}
-	if(DEBUG) printf("%02X         A:%02X X:%02X Y:%02X PF:%02X ST:%02X",
-		byte2,AC,XR,YR,PF,ST);
-	//cycle check skipped
+	return cpureadb(&(CPU->cpumap), ST + 0x100);
 }
 
-#define RJ(condition) rjump(CPU,condition);
+void rjump(cpu* CPU, int condition){
+	byte1=READBYTE(PC++);
+	if(condition){
+		INCCLOCK;
+		if(byte1 & 0x80){
+			word1 = (uint16_t)(PC - (unsigned char)(0x80 - (byte1 & 0x7F)));
+		}
+		else{
+			word1 = (uint16_t)(PC + (unsigned char)byte1);
+		}
+		if((PC & 0xFF00) != (word1 & 0xFF00)) INCCLOCK
+		PC = word1;
+	}
+	if(DEBUG) printf("%02X         A:%02X X:%02X Y:%02X PF:%02X ST:%02X",
+		byte1,AC,XR,YR,PF,ST);
+}
+
+
+static int cycle_count_table[256]={
+	7, 6, 0, 8, 3, 3, 5, 5, 3, 2, 2, 2, 4, 4, 6, 6,
+    2, 5, 0, 8, 4, 4, 6, 6, 2, 4, 2, 7, 4, 4, 7, 7,
+    6, 6, 0, 8, 3, 3, 5, 5, 4, 2, 2, 2, 4, 4, 6, 6,
+    2, 5, 0, 8, 4, 4, 6, 6, 2, 4, 2, 7, 4, 4, 7, 7,
+    6, 6, 0, 8, 3, 3, 5, 5, 3, 2, 2, 2, 3, 4, 6, 6,
+    2, 5, 0, 8, 4, 4, 6, 6, 2, 4, 2, 7, 4, 4, 7, 7,
+    6, 6, 0, 8, 3, 3, 5, 5, 4, 2, 2, 2, 5, 4, 6, 6,
+    2, 5, 0, 8, 4, 4, 6, 6, 2, 4, 2, 7, 4, 4, 7, 7,
+    2, 6, 2, 6, 3, 3, 3, 3, 2, 2, 2, 2, 4, 4, 4, 4,
+    2, 6, 0, 6, 4, 4, 4, 4, 2, 5, 2, 5, 5, 5, 5, 5,
+    2, 6, 2, 6, 3, 3, 3, 3, 2, 2, 2, 2, 4, 4, 4, 4,
+    2, 5, 0, 5, 4, 4, 4, 4, 2, 4, 2, 4, 4, 4, 4, 4,
+    2, 6, 2, 8, 3, 3, 5, 5, 2, 2, 2, 2, 4, 4, 6, 6,
+    2, 5, 0, 8, 4, 4, 6, 6, 2, 4, 2, 7, 4, 4, 7, 7,
+    2, 6, 2, 8, 3, 3, 5, 5, 2, 2, 2, 2, 4, 4, 6, 6,
+    2, 5, 0, 8, 4, 4, 6, 6, 2, 4, 2, 7, 4, 4, 7, 7
+};
+
 
 /***************INSTRUCTIONS******************/
 
 #define ADC(){											\
-	word2=AC + byte2 + (PF & CFLAG);					\
-	TSTFLAG(word2 > 0xFF,CFLAG);						\
-	TSTFLAG(~(AC^byte2) & (AC^word2) & 0x80, VFLAG);	\
-	AC=(uint16_t)word2;									\
+	word1=AC + memory_val + (PF & CFLAG);				\
+	TSTFLAG(word1 > 0xFF,CFLAG);						\
+	TSTFLAG(~(AC^memory_val) & (AC^word1) & 0x80, VFLAG);\
+	AC=(uint16_t)word1;									\
 	TSTFLAG(!AC, ZFLAG);								\
 	TSTFLAG(AC & (1<<7),NFLAG);							\
 }
 
 #define AND(){											\
-	AC &= byte2;										\
+	AC &= memory_val;									\
 	SETZN(AC);											\
 }
 
+//will be using accumulator for $0A case as memory_val in that case
 #define ASL(){											\
-	TSTFLAG(byte2 & 0x80, CFLAG);						\
-	byte2=byte2<<1;										\
-	SETZN(byte2);										\
+	TSTFLAG(memory_val & 0x80, CFLAG);					\
+	memory_val=memory_val<<1;							\
+	SETZN(memory_val);									\
 }
 
 #define BCC(){											\
@@ -226,10 +274,10 @@ void rjump(cpu* CPU, int condition){
 }
 
 #define BIT(){											\
-	byte1=AC & byte2;									\
+	byte1=AC & memory_val;								\
 	SETZN(byte1);										\
-	TSTFLAG(byte2 & 0x40, VFLAG);						\
-	TSTFLAG(byte2 & 0x80, NFLAG);						\
+	TSTFLAG(memory_val & 0x40, VFLAG);					\
+	TSTFLAG(memory_val & 0x80, NFLAG);					\
 }
 
 #define BMI(){											\
@@ -250,7 +298,7 @@ void rjump(cpu* CPU, int condition){
 	PUSH((PC>>8) & 0xFF);								\
 	PUSH(PF);											\
 	SETFLAG(B1FLAG);									\
-	PC=READW(IRQ);										\
+	PC=READWORD(IRQ);										\
 }
 
 #define BVC(){											\
@@ -282,22 +330,22 @@ void rjump(cpu* CPU, int condition){
 }
 
 #define CMP(){											\
-	TSTFLAG(AC>=byte2, CFLAG);							\
-	SETZN((char)(AC-byte2));							\
+	TSTFLAG(AC>=memory_val, CFLAG);						\
+	SETZN((char)(AC - memory_val));						\
 }
 
 #define CPX(){											\
-	TSTFLAG(XR>=byte2, CFLAG);							\
-	SETZN(XR-byte2);									\
+	TSTFLAG(XR>=memory_val, CFLAG);						\
+	SETZN(XR-memory_val);								\
 }
 
 #define CPY(){											\
-	TSTFLAG(YR>=byte2, CFLAG);							\
-	SETZN(YR-byte2);									\
+	TSTFLAG(YR>=memory_val, CFLAG);						\
+	SETZN(YR-memory_val);								\
 }
 
 #define DEC(){											\
-	SETZN(--byte2);										\
+	SETZN(--memory_val);								\
 }
 
 #define DEX(){											\
@@ -309,12 +357,12 @@ void rjump(cpu* CPU, int condition){
 }
 
 #define EOR(){											\
-	AC^=byte2;											\
+	AC^=memory_val;										\
 	SETZN(AC);											\
 }
 
 #define INC(){											\
-	SETZN((unsigned char)++byte2);						\
+	SETZN((unsigned char)++memory_val);					\
 }
 
 #define INX(){											\
@@ -326,35 +374,35 @@ void rjump(cpu* CPU, int condition){
 }
 
 #define JMP(){											\
-	PC=word1;											\
+	PC=curr_addr;										\
 }
 
 #define JSR(){											\
-	word2=PC-1;											\
-	PUSH(( word2 & 0xff00)>>8);							\
-	PUSH( word2 & 0x00ff);								\
-	PC=word1;											\
+	word1=PC-1;											\
+	PUSH(( word1 & 0xff00)>>8);							\
+	PUSH( word1 & 0x00ff);								\
+	PC=curr_addr;										\
 }
 
 #define LDA(){											\
-	AC=byte2;											\
-	SETZN(byte2);										\
+	AC=memory_val;										\
+	SETZN(memory_val);									\
 }
 
 #define LDX(){											\
-	XR=byte2;											\
+	XR=memory_val;										\
 	SETZN(XR);											\
 }
 
 #define LDY(){											\
-	YR=byte2;											\
+	YR=memory_val;										\
 	SETZN(YR);											\
 }
 
 #define LSR(){											\
-	TSTFLAG((byte2 & 0x01), CFLAG);						\
-	byte2 = byte2>>1;									\
-	SETZN(byte2);										\
+	TSTFLAG((memory_val & 0x01), CFLAG);				\
+	memory_val = memory_val>>1;							\
+	SETZN(memory_val);									\
 }
 
 #define NOP(){ \
@@ -362,7 +410,7 @@ void rjump(cpu* CPU, int condition){
 }
 
 #define ORA(){											\
-	AC|=byte2;											\
+	AC|=memory_val;										\
 	SETZN(AC);											\
 }
 
@@ -391,21 +439,19 @@ void rjump(cpu* CPU, int condition){
 }
 
 #define ROL(){											\
-	unsigned int temp;									\
-	temp=(PF & CFLAG);									\
-	TSTFLAG(byte2 & 0x80, CFLAG);						\
-	byte2=byte2<<1;										\
-	byte2|=temp;										\
-	SETZN(byte2);										\
+	byte1=(PF & CFLAG);									\
+	TSTFLAG(memory_val & 0x80, CFLAG);					\
+	memory_val=memory_val<<1;							\
+	memory_val|=byte1;									\
+	SETZN(memory_val);									\
 }
 
 #define ROR(){											\
-	unsigned int temp;									\
-	temp=(PF & CFLAG);									\
-	TSTFLAG(byte2 & 0x01, CFLAG);						\
-	byte2= byte2>>1 ; 									\
-	byte2|= (temp<<7);									\
-	SETZN(byte2);										\
+	byte1=(PF & CFLAG);									\
+	TSTFLAG(memory_val & 0x01, CFLAG);					\
+	memory_val= memory_val>>1 ; 						\
+	memory_val|= (byte1<<7);							\
+	SETZN(memory_val);									\
 }
 
 #define RTI(){											\
@@ -430,10 +476,10 @@ void rjump(cpu* CPU, int condition){
 }
 
 #define SBC(){											\
-	word2=AC-byte2- (1-(PF & CFLAG));					\
-	TSTFLAG(word2<0x100, CFLAG);						\
-	TSTFLAG((AC^byte2) & (AC^word2) & 0x80, VFLAG);		\
-	AC=(char)word2;										\
+	word1=AC- memory_val - (1-(PF & CFLAG));			\
+	TSTFLAG(word1<0x100, CFLAG);						\
+	TSTFLAG((AC^memory_val) & (AC^word1) & 0x80, VFLAG);\
+	AC=(char)word1;										\
 	SETZN(AC);											\
 }
 
@@ -453,15 +499,15 @@ void rjump(cpu* CPU, int condition){
 }
 
 #define STA(){											\
-	byte2=AC;											\
+	memory_val=AC;										\
 }
 
 #define STX(){											\
-	byte2=XR;											\
+	memory_val=XR;										\
 }
 
 #define STY(){											\
-	byte2=YR;											\
+	memory_val=YR;										\
 }
 
 #define TAX(){											\
@@ -503,17 +549,20 @@ void cpu_init(cpu *CPU){
 	PC=0xC000;
 	CPU->P=0x24;
 	CPU->S=0xFD;
+	CPU->clockcount=7;
 }
 void cpu_run(cpu *CPU){
-	byte3=byte1=byte2=(char)0;
-	word1=word2=0;
+	word1=word2=byte1=byte2=0;
+	clock_check=0;
+	int row,column,block;
 	printf("%04X ",PC);
-	unsigned char opcode=READB(PC++);
+	opcode=READBYTE(PC++);
 	printf("%02X ",opcode);
 	//row/column referenced from NESDev's opcode matrix
-	int block=(opcode & 0x03);
-	int column=(opcode & 0x1f)>>2;	//shifting to needed bits
-	int row=(opcode &  0xe0)>>5;
+	block=(opcode & 0x03);
+	column=(opcode & 0x1f)>>2;	//shifting to needed bits
+	row=(opcode &  0xe0)>>5;
+	CPU->clockcount+=cycle_count_table[opcode & 0xFF];
 	switch(block){
 		case 0x0:
 			//control block
@@ -536,18 +585,22 @@ void cpu_run(cpu *CPU){
 							break;
 						case 0x4:
 							IM();
+							READMEMVAR();
 							NOP();
 							break;
 						case 0x5:
 							IM();
+							READMEMVAR();
 							LDY();
 							break;
 						case 0x6:
 							IM();
+							READMEMVAR();
 							CPY();
 							break;
 						case 0x7:
 							IM();
+							READMEMVAR();
 							CPX();
 							break;
 					}
@@ -559,6 +612,7 @@ void cpu_run(cpu *CPU){
 							NOP();
 							break;
 						case 0x1:
+							READMEMVAR();
 							BIT();
 							break;
 						case 0x2:
@@ -567,15 +621,18 @@ void cpu_run(cpu *CPU){
 							break;
 						case 0x4:
 							STY();
-							WRITEBB();
+							WRITEMEMVAR();
 							break;
 						case 0x5:
+							READMEMVAR();
 							LDY();
 							break;
 						case 0x6:
+							READMEMVAR();
 							CPY();
 							break;
 						case 0x7:
+							READMEMVAR();
 							CPX();
 							break;
 					}
@@ -615,32 +672,38 @@ void cpu_run(cpu *CPU){
 							NOP();
 							break;
 						case 0x1:
+							READMEMVAR();
 							BIT();
 							break;
 						case 0x2:
 							JMP();
 							break;
 						case 0x3:
-							if(!((word1 & 0x00ff) == 0xff)){
-								PC=READW(word1);
+							//special weird case JMP()
+
+							if(!((curr_addr & 0x00ff) == 0xff)){
+								PC=READWORD(curr_addr);
 							}
 							else{
-								byte1=READB(word1);
-								byte2=READB(word1 & 0xFF00);
+								byte1=READBYTE(curr_addr);
+								byte2=READBYTE(curr_addr & 0xFF00);
 								PC=byte1 | (byte2<<8);
 							}
 							break;
 						case 0x4:
 							STY();
-							WRITEBW();
+							WRITEMEMVAR();
 							break;
 						case 0x5:
+							READMEMVAR();
 							LDY();
 							break;
 						case 0x6:
+							READMEMVAR();
 							CPY();
 							break;
 						case 0x7:
+							READMEMVAR();
 							CPX();
 							break;
 					}
@@ -684,9 +747,10 @@ void cpu_run(cpu *CPU){
 							break;
 						case 0x4:
 							STY();
-							WRITEBB();
+							WRITEMEMVAR();
 							break;
 						case 0x5:
+							READMEMVAR();
 							LDY();
 							break;
 						case 0x6:
@@ -725,6 +789,7 @@ void cpu_run(cpu *CPU){
 					break;
 				case 0x7:
 					ABX();
+					clock_check++;
 					switch(row){
 						case 0x0:
 						case 0x1:
@@ -733,10 +798,12 @@ void cpu_run(cpu *CPU){
 							NOP();
 							break;
 						case 0x4:
-							byte2=YR & (((PC & 0xff00)>>8)-1);
-							WRITEBW();
+							memory_val=YR & (((PC & 0xff00)>>8)-1);
+							WRITEMEMVAR();
+							clock_check++;
 							break;
 						case 0x5:
+							READMEMVAR();
 							LDY();
 							break;
 						case 0x6:
@@ -764,45 +831,59 @@ void cpu_run(cpu *CPU){
 					AB();
 					break;
 				case 0x4:
+					clock_check++;
 					INDY();
 					break;
 				case 0x5:
 					ZPX();
 					break;
 				case 0x6:
+					clock_check++;
 					ABY();
 					break;
 				case 0x7:
+					clock_check++;
 					ABX();
 					break;
 			}
 			switch(row){
 				case 0x0:
+					READMEMVAR();
 					ORA();
 					break;
 				case 0x1:
+					READMEMVAR();
 					AND();
 					break;
 				case 0x2:
+					READMEMVAR();
 					EOR();
 					break;
 				case 0x3:
+					READMEMVAR();
 					ADC();
 					break;
 				case 0x4:
-					if(column == 0x2) break;
-					else if((column==0x1)||(column==0x5))
-						word1=byte1;
-					byte2=AC;
-					WRITEBW();
+					clock_check++;
+					if(column == 0x2){
+						NOP();
+						break;
+					}
+					else{
+						memory_val=AC;
+						WRITEMEMVAR();
+					}
 					break;
 				case 0x5:
+					READMEMVAR();
 					LDA();
 					break;
 				case 0x6:
+					READMEMVAR();
 					CMP();
 					break;
 				case 0x7:
+					READMEMVAR();
 					SBC();
 					break;
 			}
@@ -821,9 +902,11 @@ void cpu_run(cpu *CPU){
 							break;
 						case 0x4:
 							IM();
+							NOP();
 							break;
 						case 0x5:
 							IM();
+							READMEMVAR();
 							LDX();
 							break;
 						case 0x6:
@@ -835,58 +918,56 @@ void cpu_run(cpu *CPU){
 					break;
 				case 0x1:
 					ZP();
+					READMEMVAR();
 					switch(row){
 						case 0x0:
 							ASL();
-							WRITEBB();
 							break;
 						case 0x1:
 							ROL();
-							WRITEBB();
 							break;
 						case 0x2:
 							LSR();
-							WRITEBB();
 							break;
 						case 0x3:
 							ROR();
-							WRITEBB();
 							break;
 						case 0x4:
 							STX();
-							WRITEBB();
 							break;
 						case 0x5:
 							LDX();
 							break;
 						case 0x6:
 							DEC();
-							WRITEBB();
 							break;
 						case 0x7:
 							INC();
-							WRITEBB();
 							break;
 					}
+					WRITEMEMVAR();
 					break;
 				case 0x2:
-					byte2=AC;
 					switch(row){
 						case 0x0:
+							memory_val=AC;
 							ASL();
-							AC=byte2;
+							AC=memory_val;
 							break;
 						case 0x1:
+							memory_val=AC;
 							ROL();
-							AC=byte2;
+							AC=memory_val;
 							break;
 						case 0x2:
+							memory_val=AC;
 							LSR();
-							AC=byte2;
+							AC=memory_val;
 							break;
 						case 0x3:
+							memory_val=AC;
 							ROR();
-							AC=byte2;
+							AC=memory_val;
 							break;
 						case 0x4:
 							TXA();
@@ -904,40 +985,34 @@ void cpu_run(cpu *CPU){
 					break;
 				case 0x3:
 					AB();
+					READMEMVAR();
 					switch(row){
 						case 0x0:
 							ASL();
-							WRITEBW();
 							break;
 						case 0x1:
 							ROL();
-							WRITEBW();
 							break;
 						case 0x2:
 							LSR();
-							WRITEBW();
 							break;
 						case 0x3:
 							ROR();
-							WRITEBW();
 							break;
 						case 0x4:
 							STX();
-							WRITEBW();
 							break;
 						case 0x5:
 							LDX();
-							WRITEBW();
 							break;
 						case 0x6:
 							DEC();
-							WRITEBW();
 							break;
 						case 0x7:
 							INC();
-							WRITEBW();
 							break;
 					}
+					WRITEMEMVAR();
 					break;
 
 				case 0x4:
@@ -948,45 +1023,46 @@ void cpu_run(cpu *CPU){
 					switch(row){
 						case 0x0:
 							ZPX();
+							READMEMVAR();
 							ASL();
-							WRITEBB();
 							break;
 						case 0x1:
 							ZPX();
+							READMEMVAR();
 							ROL();
-							WRITEBB();
 							break;
 						case 0x2:
 							ZPX();
+							READMEMVAR();
 							LSR();
-							WRITEBB();
 							break;
 						case 0x3:
 							ZPX();
+							READMEMVAR();
 							ROR();
-							WRITEBB();
 							break;
 						case 0x4:
 							ZPY();
+							READMEMVAR();
 							STX();
-							WRITEBB();
 							break;
 						case 0x5:
 							ZPY();
+							READMEMVAR();
 							LDX();
-							WRITEBB();
 							break;
 						case 0x6:
 							ZPX();
+							READMEMVAR();
 							DEC();
-							WRITEBB();
 							break;
 						case 0x7:
 							ZPX();
+							READMEMVAR();
 							INC();
-							WRITEBB();
 							break;
 					}
+					WRITEMEMVAR();
 					break;
 				case 0x6:
 					switch(row){
@@ -1009,49 +1085,57 @@ void cpu_run(cpu *CPU){
 					}
 					break;
 				case 0x7:
-				//cam be broken down more column>>2
+					clock_check++;
 					switch(row){
 						case 0x0:
 							ABX();
+							READMEMVAR();
 							ASL();
-							WRITEBW();
+							clock_check++;
 							break;
 						case 0x1:
 							ABX();
+							READMEMVAR();
 							ROL();
-							WRITEBW();
+							clock_check++;
 							break;
 						case 0x2:
 							ABX();
+							READMEMVAR();
 							LSR();
-							WRITEBW();
+							clock_check++;
 							break;
 						case 0x3:
 							ABX();
+							READMEMVAR();
 							ROR();
-							WRITEBW();
+							clock_check++;
 							break;
 						case 0x4:
 							ABY();
-							byte2= XR & (((PC & 0xff00)>>8)-1);
-							WRITEBW();
+							clock_check++;
+							READMEMVAR();
+							memory_val = XR & (((PC & 0xff00)>>8)-1);
 							break;
 						case 0x5:
 							ABY();
+							READMEMVAR();
 							LDX();
-							WRITEBW();
 							break;
 						case 0x6:
 							ABX();
+							READMEMVAR();
 							DEC();
-							WRITEBW();
+							clock_check++;
 							break;
 						case 0x7:
 							ABX();
+							READMEMVAR();
 							INC();
-							WRITEBW();
+							clock_check++;
 							break;
 					}
+					WRITEMEMVAR();
 					break;
 			}
 			break;
@@ -1072,6 +1156,7 @@ void cpu_run(cpu *CPU){
 					AB();
 					break;
 				case 0x4:
+					clock_check++;
 					INDY();
 					break;
 				case 0x5:
@@ -1093,9 +1178,11 @@ void cpu_run(cpu *CPU){
 					}
 					break;
 				case 0x6:
+					clock_check++;
 					ABY();
 					break;
 				case 0x7:
+					clock_check++;
 					switch(row){
 						case 0x0:
 						case 0x1:
@@ -1116,80 +1203,86 @@ void cpu_run(cpu *CPU){
 			}
 			switch(row){
 				case 0x0:
+					READMEMVAR();
 					if(column==0x2){
 						AND();
 					}
 					else{
 						ASL();
-						if(byte1) word1=byte1;
-						WRITEBW();
+						WRITEMEMVAR();
 						ORA();
+						clock_check++;
 					}
 					break;
 				case 0x1:
+					READMEMVAR();
 					if(column == 0x2){
 						AND();
 					}
 					else{
 						ROL();
-						if(byte1) word1=byte1;
-						WRITEBW();
+						WRITEMEMVAR();
 						AND();
+						clock_check++;
 					}
 					break;
 				case 0x2:
+					READMEMVAR();
 					if(column==0x2){
-						byte2=byte2 & AC;
+						memory_val=memory_val & AC;
 						LSR();
-						AC=byte2;
+						AC=memory_val;
 					}
 					else{
 						LSR();
-						if(byte1) word1=byte1;
-						WRITEBW();
+						WRITEMEMVAR();
 						EOR();
+						clock_check++;
 					}
 					break;
 				case 0x3:
+					READMEMVAR();
 					if(column == 0x2){
-						byte2=byte2 & AC;
+						memory_val=memory_val & AC;
 						ROR();
-						AC=byte2;
+						AC=memory_val;
 					}
 					else{
 						ROR();
 						ADC();
-						if(byte1) word1=byte1;
-						WRITEBW();
+						WRITEMEMVAR();
+						clock_check++;
 					}
 					break;
 				case 0x4:
+					READMEMVAR();
 					if((column==0x0)||(column==0x1)||(column==0x3)||(column==0x5)){
-						byte2= XR & AC;
+						memory_val= XR & AC;
 						//SETZN(byte2);
-						if(byte1) word1=byte1;
-						WRITEBW();
+						WRITEMEMVAR();
 					}
 					else if((column==0x4)||(column==0x7)){
-						byte2=(XR & AC)& 0x7;
-						WRITEBW();
+						clock_check++;
+						memory_val=(XR & AC)& 0x7;
+						WRITEMEMVAR();
 					}
 					else if(column==0x6){
 						ST = XR & AC;
-						byte2=ST & (((PC & 0xff00)>>8)-1);
-						WRITEBW();
+						memory_val=ST & (((PC & 0xff00)>>8)-1);
+						WRITEMEMVAR();
 					}
 					else{
 						printf(" to be implemented ");
 					}
 					break;
 				case 0x5:
+					READMEMVAR();
 					if(column==0x2){
-						XR=byte2 & AC;
+						XR= memory_val & AC;
 						SETZN(XR);
 					}
 					else if(column==0x6){
-						AC=ST & byte2;
+						AC=ST & memory_val;
 						XR=AC;
 						ST=AC;
 						SETZN(AC);
@@ -1200,33 +1293,36 @@ void cpu_run(cpu *CPU){
 					}
 					break;
 				case 0x6:
+					READMEMVAR();
 					if(column==0x2){
 						XR=XR & AC;
-						word1=XR-byte2;
+						word1=XR - memory_val;
 						TSTFLAG(word1 < 0x100, CFLAG);
 						SETZN(word1);
 						XR=word1;
 					}
 					else {
-						byte2=byte2-1;
-						if(byte1) word1=byte1;
+						memory_val=memory_val-1;
 						CMP();
-						WRITEBW();
+						WRITEMEMVAR();
+						clock_check++;
 					}
 					break;
 				case 0x7:
+					READMEMVAR();
 					if(column==0x2){
 						SBC();
 					}
 					else{
-						byte2++;
-						if(byte1) word1=byte1;
-						WRITEBW();
+						memory_val++;
+						WRITEMEMVAR();
 						SBC();
+						clock_check++;
 					}
 					break;
 			}
 			break;
 	}
-	printf("\n");
+	if(clock_check > 2) DECCLOCK
+	printf(" Cycle: %d\n", CPU->clockcount);
 }

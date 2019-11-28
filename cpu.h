@@ -10,6 +10,7 @@ typedef struct{
 	uint8_t P;      	//flags
 	char RAM[0x2000];	//Main RAM
 	memmap cpumap[5];
+	unsigned int clockcount;
 }cpu;
 
 void cpu_init(cpu *CPU);	//initialize CPU
