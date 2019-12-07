@@ -2,6 +2,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include "memory.h"
+#include <stdbool.h>
 #include "cpu.h"
 
 #define DEBUG (1)
@@ -15,7 +16,7 @@
 #define PF (CPU->P)	//Flag register
 
 //Variables to transfer data and do operations 
-static unsigned char byte1,byte2,memory_val,opcode;
+static uint8_t byte1,byte2,memory_val,opcode;
 uint16_t word1,word2,curr_addr;
 static unsigned int clock_check=0;
 typedef enum addr_mode{
@@ -38,45 +39,45 @@ typedef enum addr_mode{
 //byte1, byte2, word1 and word2 are all temporary variables
 /****************Macros for easy r/w operations*******************/
 
-#define READMEMVAR() memory_val = cpureadb(&(CPU->cpumap),curr_addr);
-#define WRITEMEMVAR() cpuwriteb(&(CPU->cpumap),curr_addr,memory_val);
-#define READBYTE(addr) cpureadb(&(CPU->cpumap),addr);
-#define READWORD(addr) cpureadw(&(CPU->cpumap),addr);
-#define READZEROWRAP(addr) zpcpureadw(&(CPU->cpumap),addr);
-#define WRITEBYTE(addr,data) cpuwriteb(&(CPU->cpumap),addr,data);
-#define WRITEW(addr,data) cpuwritew(&(CPU->cpumap),addr,data);
-#define WRITEZW(addr,data) zpcpuwritew(&(CPU->cpumap),addr,data);
-#define WRITEBB() cpuwriteb(&(CPU->cpumap),curr_addr,byte2);
-#define WRITEWB() cpuwritew(&(CPU->cpumap),curr_addr,curr_addr);
-#define WRITEBW() cpuwriteb(&(CPU->cpumap),curr_addr,byte2);
-#define WRITEWW() cpuwritew(&(CPU->cpumap),curr_addr,curr_addr);
+#define READMEMVAR() memory_val = cpureadb((CPU->cpumap),curr_addr);
+#define WRITEMEMVAR() cpuwriteb((CPU->cpumap),curr_addr,memory_val);
+#define READBYTE(addr) cpureadb((CPU->cpumap),addr);
+#define READWORD(addr) cpureadw((CPU->cpumap),addr);
+#define READZEROWRAP(addr) zpcpureadw((CPU->cpumap),addr);
+#define WRITEBYTE(addr,data) cpuwriteb((CPU->cpumap),addr,data);
+#define WRITEW(addr,data) cpuwritew((CPU->cpumap),addr,data);
+#define WRITEZW(addr,data) zpcpuwritew((CPU->cpumap),addr,data);
+#define WRITEBB() cpuwriteb((CPU->cpumap),curr_addr,byte2);
+#define WRITEWB() cpuwritew((CPU->cpumap),curr_addr,curr_addr);
+#define WRITEBW() cpuwriteb((CPU->cpumap),curr_addr,byte2);
+#define WRITEWW() cpuwritew((CPU->cpumap),curr_addr,curr_addr);
 
 /******************Addressing modes********************/
 
 void zp(cpu* CPU){				 //zero page
 	curr_addr=READBYTE(PC++);
 	if(DEBUG) printf("%02X         A:%02X X:%02X Y:%02X PF:%02X ST:%02X",
-		byte1,AC,XR,YR,PF,ST);
+		curr_addr,AC,XR,YR,PF,ST);
 }
 void zpx(cpu* CPU){				//Indexed Zero Page
 	curr_addr=READBYTE(PC++);
 	curr_addr=(unsigned char)(curr_addr + XR);
 	if(DEBUG) printf("%02X         A:%02X X:%02X Y:%02X PF:%02X ST:%02X",
-		byte1,AC,XR,YR,PF,ST);
+		curr_addr,AC,XR,YR,PF,ST);
 }
 
 void zpy(cpu* CPU){				//Indexed Zero Page with Y
 	curr_addr=READBYTE(PC++);
 	curr_addr=(unsigned char)(curr_addr + YR);
 	if(DEBUG) printf("%02X         A:%02X X:%02X Y:%02X PF:%02X ST:%02X",
-		byte1,AC,XR,YR,PF,ST);
+		curr_addr,AC,XR,YR,PF,ST);
 }
 
 void ab(cpu* CPU){				//Absolute addressing
 	curr_addr=READWORD(PC);
 	PC+=2;
 	if(DEBUG) printf("%02X %02X      A:%02X X:%02X Y:%02X PF:%02X ST:%02X",
-		(word1 & 0x00ff),(word1 & 0xff00)>>8,AC,XR,YR,PF,ST);
+		(curr_addr & 0x00ff),(curr_addr & 0xff00)>>8,AC,XR,YR,PF,ST);
 }
 
 void abx(cpu* CPU){				//Absolute addressing indexed with X
@@ -89,7 +90,7 @@ void abx(cpu* CPU){				//Absolute addressing indexed with X
 	curr_addr=word1;
 	PC+=2;
 	if(DEBUG) printf("%02X %02X      A:%02X X:%02X Y:%02X PF:%02X ST:%02X",
-		(word1 & 0x00ff),(word1 & 0xff00)>>8,AC,XR,YR,PF,ST);
+		(curr_addr & 0x00ff),(curr_addr & 0xff00)>>8,AC,XR,YR,PF,ST);
 }
 
 void aby(cpu* CPU){				//Absolute addressing indexed with Y
@@ -102,7 +103,7 @@ void aby(cpu* CPU){				//Absolute addressing indexed with Y
 	curr_addr=word1;
 	PC+=2;
 	if(DEBUG) printf("%02X %02X      A:%02X X:%02X Y:%02X PF:%02X ST:%02X",
-		(word1 & 0x00ff),(word1 & 0xff00)>>8,AC,XR,YR,PF,ST);
+		(curr_addr & 0x00ff),(curr_addr & 0xff00)>>8,AC,XR,YR,PF,ST);
 }
 
 void im(cpu* CPU){				//Immediate addressing
@@ -191,13 +192,13 @@ void setznflag(cpu* CPU, int value){
 #define RJ(condition) rjump(CPU,condition);
 
 void push(cpu *CPU, char data){
-	cpuwriteb(&(CPU->cpumap), ST + 0x100, data);
+	cpuwriteb((CPU->cpumap), ST + 0x100, data);
 	ST--;
 }
 
 unsigned char pop(cpu *CPU){
 	ST++;
-	return cpureadb(&(CPU->cpumap), ST + 0x100);
+	return cpureadb((CPU->cpumap), ST + 0x100);
 }
 
 void rjump(cpu* CPU, int condition){
@@ -217,8 +218,7 @@ void rjump(cpu* CPU, int condition){
 		byte1,AC,XR,YR,PF,ST);
 }
 
-
-static int cycle_count_table[256]={
+uint8_t cycle_count_table[256]={
 	7, 6, 0, 8, 3, 3, 5, 5, 3, 2, 2, 2, 4, 4, 6, 6,
     2, 5, 0, 8, 4, 4, 6, 6, 2, 4, 2, 7, 4, 4, 7, 7,
     6, 6, 0, 8, 3, 3, 5, 5, 4, 2, 2, 2, 4, 4, 6, 6,
@@ -298,7 +298,7 @@ static int cycle_count_table[256]={
 	PUSH((PC>>8) & 0xFF);								\
 	PUSH(PF);											\
 	SETFLAG(B1FLAG);									\
-	PC=READWORD(IRQ);										\
+	PC=READWORD(IRQ);									\
 }
 
 #define BVC(){											\
@@ -461,9 +461,9 @@ static int cycle_count_table[256]={
 	PF=byte2 & ~(B1FLAG | B2FLAG);						\
 	PF=PF | byte1;										\
 	byte2=POP();										\
-	PC=(byte2);											\
+	PC=(byte2<<8);										\
 	byte2=POP();										\
-	PC|=(byte2<<8);										\
+	PC|=(byte2);										\
 }
 
 #define RTS(){											\
@@ -546,12 +546,14 @@ void cpu_init(cpu *CPU){
 	CPU->A=0;
 	CPU->X=0;
 	CPU->Y=0;
-	PC=0xC000;
+	CPU->PrgCount=RESET;
 	CPU->P=0x24;
 	CPU->S=0xFD;
 	CPU->clockcount=7;
+	CPU->innmi=0;
 }
 void cpu_run(cpu *CPU){
+	CPU->clockcount=0;
 	word1=word2=byte1=byte2=0;
 	clock_check=0;
 	int row,column,block;
@@ -1322,6 +1324,14 @@ void cpu_run(cpu *CPU){
 					break;
 			}
 			break;
+	}
+	if(CPU->innmi){																					
+		PUSH((PC>>0) & 0x00FF);								
+		PUSH((PC>>8) & 0xFF);								
+		PUSH(PF);											
+		SETFLAG(B1FLAG);									
+		PC=READWORD(NMI);
+		CPU->innmi=0;
 	}
 	if(clock_check > 2) DECCLOCK
 	printf(" Cycle: %d\n", CPU->clockcount);
