@@ -23,4 +23,6 @@ void cpu_nmi(cpu *CPU, int nmi);//nmi triggered
 void cpu_irq(cpu *CPU, int irq);//irq triggered
 void cpu_run(cpu *CPU); 	//run one CPU clock
 
+
+
 #endif

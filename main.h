@@ -12,6 +12,7 @@ typedef struct{
 	cartridge cart;
 	cpu CPU;
 	ppu PPU;
+	uint8_t controlregs[20];
 	/*apu APU;
 	mapper MAPPER;*/
 

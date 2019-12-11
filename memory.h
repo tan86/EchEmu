@@ -3,7 +3,7 @@
 #include <stdint.h>
 
 typedef enum{
-	RAMT, PPU_REG
+	RAMT, PPU_REG, CONTROLREG
 }memtype;
 
 typedef struct{	

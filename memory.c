@@ -1,5 +1,6 @@
 
 #include "memory.h"
+#include "cpu.h"
 
 curr_mem memdata;
 uint8_t temp1,temp2;
@@ -23,7 +24,7 @@ void find_memcpu(memmap* memory, uint16_t addr){
 }
 
 void find_memppu(memmap* memory, uint16_t addr){
-	for(int i=3; i>=0;i--){		//this implementation is supposed to have 5 groups of memory for cpu implementation
+	for(int i=3; i>=0;i--){		//this implementation is supposed to have 4 groups of memory for cpu implementation
 		if(memory[i].start<=addr){
 			memdata.type=memory[i].type;
 			if(addr==memory[i].start) memdata.pointer = memory[i].pointer;

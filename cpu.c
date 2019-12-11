@@ -16,8 +16,8 @@
 #define PF (CPU->P)	//Flag register
 
 //Variables to transfer data and do operations 
-static uint8_t byte1,byte2,memory_val,opcode;
-uint16_t word1,word2,curr_addr;
+static uint8_t 		byte1,byte2,memory_val,opcode;
+static uint16_t 	word1,word2,curr_addr;
 static unsigned int clock_check=0;
 typedef enum addr_mode{
 	IMPLIED,
@@ -39,18 +39,18 @@ typedef enum addr_mode{
 //byte1, byte2, word1 and word2 are all temporary variables
 /****************Macros for easy r/w operations*******************/
 
-#define READMEMVAR() memory_val = cpureadb((CPU->cpumap),curr_addr);
-#define WRITEMEMVAR() cpuwriteb((CPU->cpumap),curr_addr,memory_val);
-#define READBYTE(addr) cpureadb((CPU->cpumap),addr);
-#define READWORD(addr) cpureadw((CPU->cpumap),addr);
-#define READZEROWRAP(addr) zpcpureadw((CPU->cpumap),addr);
-#define WRITEBYTE(addr,data) cpuwriteb((CPU->cpumap),addr,data);
-#define WRITEW(addr,data) cpuwritew((CPU->cpumap),addr,data);
-#define WRITEZW(addr,data) zpcpuwritew((CPU->cpumap),addr,data);
-#define WRITEBB() cpuwriteb((CPU->cpumap),curr_addr,byte2);
-#define WRITEWB() cpuwritew((CPU->cpumap),curr_addr,curr_addr);
-#define WRITEBW() cpuwriteb((CPU->cpumap),curr_addr,byte2);
-#define WRITEWW() cpuwritew((CPU->cpumap),curr_addr,curr_addr);
+#define READMEMVAR() 		memory_val = cpureadb((CPU->cpumap),curr_addr);
+#define WRITEMEMVAR() 		cpuwriteb((CPU->cpumap),curr_addr,memory_val);
+#define READBYTE(addr) 		cpureadb((CPU->cpumap),addr);
+#define READWORD(addr) 		cpureadw((CPU->cpumap),addr);
+#define READZEROWRAP(addr) 	zpcpureadw((CPU->cpumap),addr);
+#define WRITEBYTE(addr,data)cpuwriteb((CPU->cpumap),addr,data);
+#define WRITEW(addr,data) 	cpuwritew((CPU->cpumap),addr,data);
+#define WRITEZW(addr,data) 	zpcpuwritew((CPU->cpumap),addr,data);
+#define WRITEBB() 			cpuwriteb((CPU->cpumap),curr_addr,byte2);
+#define WRITEWB() 			cpuwritew((CPU->cpumap),curr_addr,curr_addr);
+#define WRITEBW() 			cpuwriteb((CPU->cpumap),curr_addr,byte2);
+#define WRITEWW() 			cpuwritew((CPU->cpumap),curr_addr,curr_addr);
 
 /******************Addressing modes********************/
 
@@ -175,21 +175,21 @@ void setznflag(cpu* CPU, int value){
 	else if(value >> 7) PF |= NFLAG;
 }
 
-#define CHKFLAG(f) check_flag(CPU, f);
-#define SETFLAG(f) set_flag(CPU, f);
-#define TSTFLAG(c,f) test_flag(CPU,c,f);
-#define SETZN(f) setznflag(CPU,f);
+#define CHKFLAG(f) 		check_flag(CPU, f);
+#define SETFLAG(f) 		set_flag(CPU, f);
+#define TSTFLAG(c,f) 	test_flag(CPU,c,f);
+#define SETZN(f) 		setznflag(CPU,f);
 
 
 /*****************MISC Functions and Macros**********************/
 //interrupt locations
-#define IRQ (0xFFFE)
-#define NMI (0xFFFA)
-#define RESET (0xFFFC)
+#define IRQ 	(0xFFFE)
+#define NMI 	(0xFFFA)
+#define RESET 	(0xFFFC)
 //Functions to help in code
-#define PUSH(data) push(CPU, data);
-#define POP() pop(CPU);
-#define RJ(condition) rjump(CPU,condition);
+#define PUSH(data) 		push(CPU, data);
+#define POP() 			pop(CPU);
+#define RJ(condition) 	rjump(CPU,condition);
 
 void push(cpu *CPU, char data){
 	cpuwriteb((CPU->cpumap), ST + 0x100, data);
@@ -1334,5 +1334,5 @@ void cpu_run(cpu *CPU){
 		CPU->innmi=0;
 	}
 	if(clock_check > 2) DECCLOCK
-	printf(" Cycle: %d\n", CPU->clockcount);
+	if(DEBUG) printf(" Cycle: %d\n", CPU->clockcount);
 }

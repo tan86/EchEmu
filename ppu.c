@@ -240,7 +240,7 @@ void ppu_init(ppu *PPU){
 }
 
 uint8_t ppu_read_reg(memmap* map, uint16_t addr){
-	ppu* PPU = (ppu*) (map[5].pointer);
+	ppu* PPU = (ppu*) &(((nes*)map[5].pointer)->PPU);
 	VRAMADDR = VRAMADDR & 0x3FFF;
 	uint8_t byte;
 	switch(addr & 0x7){
@@ -297,7 +297,7 @@ uint8_t ppu_read_reg(memmap* map, uint16_t addr){
 }
 
 void ppu_write_reg(memmap* map, uint16_t addr, uint8_t byte){
-	ppu* PPU = (ppu*) (map[5].pointer);
+	ppu* PPU = (ppu*) &(((nes*)map[5].pointer)->PPU);
 	switch(addr & 0x7){
 		case 0x0:
 			PPU->tempvramaddr &= ~(0x30 <<10);
