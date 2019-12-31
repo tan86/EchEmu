@@ -15,6 +15,12 @@ PPUDATA		$2007	dddd dddd	PPU data read/write
 OAMDMA		$4014	aaaa aaaa	OAM DMA high address
 */
 
+typedef struct{
+	uint8_t ypos;
+	uint8_t index;
+	uint8_t attr;
+	uint8_t xpos;
+}oamtype;
 
 typedef struct {
 	struct {
@@ -45,6 +51,8 @@ typedef struct {
 	uint16_t vramaddr,tempvramaddr;
 	uint8_t curr_tile[8];
 	long long int framecount;
+	oamtype *OAMdata;
+	uint8_t* OAMpointer;
 	memmap ppumap[5];
 }ppu;
 
@@ -64,6 +72,7 @@ typedef struct {
 #define SHOWLFCHR			(PPU->registers.PPUMASK & (1<<2))
 #define SHOWLFBG			(PPU->registers.PPUMASK & (1<<1))
 #define SHOWGREY			(PPU->registers.PPUMASK & 0x1)
+#define RENDER				(SHOWBG && (PPU->scanline < 241))
 
 /*******************PPUSTATUS MACROS*************************/
 #define VBLANK 				(PPU->registers.PPUSTATUS & (1<<7))

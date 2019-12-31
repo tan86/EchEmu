@@ -14,10 +14,8 @@
 .
 */
 
-const int SCREEN_HEIGHT=240*(1.5);
-const int SCREEN_WIDTH=256*(1.5);
-
-char keymap[]={}; //to be written
+const int SCREEN_HEIGHT=240;
+const int SCREEN_WIDTH=256;
 
 int main(int argc, char *argv[]){
 	if (argc!=2){
@@ -52,9 +50,22 @@ int main(int argc, char *argv[]){
     
     SDL_Texture* sdlTexture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, 256, 240);
 
+    const uint8_t *state = SDL_GetKeyboardState(NULL);
+
 	for(int i=0;;i++){
-		printf("%d %d %d %d ",i, NES->PPU.framecount,NES->PPU.scanline,NES->PPU.tick);
+		if(DEBUG) printf("%d %d %d %d ",i, NES->PPU.framecount,NES->PPU.scanline,NES->PPU.tick);
+		
+		//one cpu run 
 		cpu_run(&(NES->CPU));
+
+		//poll events if controller's strobe is high
+		if(NES->controller1.strobe)
+			poll_input(&(NES->controller1), state);
+		if(state[SDL_SCANCODE_ESCAPE]){
+			free_nes(NES);
+		}
+
+		//run the PPU 3 times of total CPU cycles
 		for(int i=0; i < (3 * (NES->CPU.clockcount)); i++){
 			ppu_run(&(NES->PPU));
 			if(NES->PPU.innmi){
@@ -92,7 +103,7 @@ void init_nes(nes* NES, char* game){
 	registermem(&(NES->CPU.cpumap[1]),	 8,   	0x2000,&(NES->PPU.registers),		PPU_REG	  );
 	registermem(&(NES->CPU.cpumap[2]),0x20,		0x4000,NES->controlregs,			CONTROLREG);
 	registermem(&(NES->CPU.cpumap[3]),2*16*16*16,0x6000,NES->cart.batteryrampointer,RAMT	  );
-	registermem(&(NES->CPU.cpumap[4]),4*16*16*16,0x8000,NES->cart.prgrompointer,	RAMT	  );
+	registermem(&(NES->CPU.cpumap[4]),(NES->cart.prgromno)*4*16*16*16,0x8000,NES->cart.prgrompointer,	RAMT	  );
 
 	NES->CPU.PrgCount = cpureadw(NES->CPU.cpumap,NES->CPU.PrgCount);
 
@@ -103,11 +114,11 @@ void init_nes(nes* NES, char* game){
 	NES->CPU.cpumap[5].type 	= RAMT;
 	/**************************************/
 
-	ppu_init(&(NES->PPU));
-
 	NES->PPU.nametable 	= (uint8_t*)malloc(4*16*16*16*sizeof(uint8_t));
 	NES->PPU.gfx 		= (uint32_t*)malloc(256*240*sizeof(uint32_t));
 	NES->PPU.palette 	= (uint8_t*)malloc(0x20*sizeof(uint8_t));
+	NES->PPU.OAMdata	= (oamtype*)malloc(64*4*sizeof(uint8_t));
+	NES->PPU.OAMpointer = (uint8_t*)(NES->PPU.OAMdata);
 	
 	memset(NES->PPU.nametable,	0,	4*16*16*16);
 	memset(NES->PPU.gfx,		0,	256*240*sizeof(uint32_t));
@@ -127,4 +138,17 @@ void init_nes(nes* NES, char* game){
 		registermem(&((NES->PPU).ppumap[2]),0x400, 0x2800,(NES->PPU.nametable + 2*16*16*16),RAMT);
 	}
 	registermem(&((NES->PPU).ppumap[3]),0x20,0x3F00,NES->PPU.palette,RAMT);
+}
+
+void free_nes(nes* NES){
+	free(NES->CPU.RAM);
+	free(NES->PPU.nametable);
+	free(NES->PPU.gfx);
+	free(NES->PPU.palette);
+	if(NES->cart.prgrompointer)		free(NES->cart.prgrompointer);
+	if(NES->cart.batteryrampointer)	free(NES->cart.batteryrampointer);
+	if(NES->cart.trainerpointer)	free(NES->cart.trainerpointer);
+	if(NES->cart.chrrompointer)		free(NES->cart.chrrompointer);
+	free(NES);
+	exit(0);
 }

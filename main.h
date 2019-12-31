@@ -6,6 +6,8 @@
 #include "cpu.h"
 #include "memory.h"
 #include "ppu.h"
+#include "input.h"
+
 typedef struct{
 
 	//Components
@@ -13,6 +15,8 @@ typedef struct{
 	cpu CPU;
 	ppu PPU;
 	uint8_t controlregs[20];
+	controller controller1;
+	controller controller2;
 	/*apu APU;
 	mapper MAPPER;*/
 
