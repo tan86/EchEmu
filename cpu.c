@@ -4,6 +4,7 @@
 #include "memory.h"
 #include <stdbool.h>
 #include "cpu.h"
+#include "main.h"
 
 //defining macros for CPU's structure readability 
 
@@ -1372,6 +1373,8 @@ void cpu_run(cpu *CPU){
 }
 
 void write_control_reg(memmap* memory, uint16_t addr, uint8_t data){
+	ppu* PPU = (ppu*) &(((nes*)memory[5].pointer)->PPU);
+	cpu* CPU = (cpu*) &(((nes*)memory[5].pointer)->CPU);
 	switch(addr & 0x1F){
 		case 0x00:
 			break;
@@ -1396,7 +1399,7 @@ void write_control_reg(memmap* memory, uint16_t addr, uint8_t data){
 		case 0x13:
 			break;
 		case 0x14:
-			/*memcpy(((ppu*) &(((nes*)map[5].pointer)->PPU))->OAMdata,&(CPU->RAM[data << 8]), 256);*/
+			memcpy(PPU->OAMdata, &(CPU->RAM[data >> 8]) , 0xFF);
 			break;
 		case 0x15:
 			break;

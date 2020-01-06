@@ -184,9 +184,6 @@ void ppu_run(ppu* PPU){
 			PPU->gfx[(PPU->scanline)*256 + (PPU->tick - 1)] |= 0xFF<<24;
 			PPU->finex++;
 		}
-		if(SHOWCHR){
-			oamtype* OAM = (oamtype*)(PPU->OAMpointer + PPU->registers.OAMADDR);
-		}
 	}
 	else if((PPU->tick==257)&&(PPU->scanline >= 0) && (PPU->scanline < 240)) {
 		/*PPU->vramaddr &= ~(0x41F);

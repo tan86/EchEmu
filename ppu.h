@@ -72,7 +72,7 @@ typedef struct {
 #define SHOWLFCHR			(PPU->registers.PPUMASK & (1<<2))
 #define SHOWLFBG			(PPU->registers.PPUMASK & (1<<1))
 #define SHOWGREY			(PPU->registers.PPUMASK & 0x1)
-#define RENDER				(SHOWBG && (PPU->scanline < 241))
+#define RENDER				((SHOWBG || SHOWCHR) && (PPU->scanline < 240))
 
 /*******************PPUSTATUS MACROS*************************/
 #define VBLANK 				(PPU->registers.PPUSTATUS & (1<<7))

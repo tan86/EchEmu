@@ -14,7 +14,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-typedef enum mirror{
+enum mirror{
 	HORIZONTALMIR,
 	VERTICALMIR,
 	FOURSCRMIR,

@@ -1,13 +1,13 @@
 BUILDDIR := build
 OBJDIR := $(BUILDDIR)/obj
-BINDIR := $(BUILDDIR)/bin
 
-SRCS := cpu.c main.c memory.c
+SRCS := cpu.c main.c memory.c input.c cartridge.c ppu.c
 OBJS := $(SRCS:%.c=$(OBJDIR)/%.o)
 
-CFLAGS := -Wall -Wextra
+CFLAGS := -w -g
+LDFLAGS := -lSDL2
 
-$(BINDIR)/nesemu: $(OBJS)
+nesemu: $(OBJS)
 	@mkdir -p $(@D)
 	$(CC) $(LDFLAGS) $^ -o $@
 

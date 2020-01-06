@@ -23,6 +23,7 @@ uint8_t read_controller(memmap* memory, uint16_t addr){
 			data |= ((J1->data2 >> (J1->counter)) & 0x1)<<2;
 			data |= ((J1->data3 >> (J1->counter)) & 0x1)<<3;
 			data |= ((J1->data4 >> (J1->counter)) & 0x1)<<4;
+			J1->counter++;
 			return data;
 		case 0x17:
 			data |= (J2->data0 << (J2->counter)) & 0x1;
