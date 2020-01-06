@@ -12,8 +12,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
+#include <stdint.h>
 
-typedef enum mirror{
+enum mirror{
 	HORIZONTALMIR,
 	VERTICALMIR,
 	FOURSCRMIR,
@@ -22,12 +23,12 @@ typedef enum mirror{
 
 typedef struct{
 	char type[4];	//type of rom file, iNES/UNIF/etc
-	char prgromno;	//no of PRG ROM banks (16kb, program code)
-	char chrromno;	//no of CHR ROM banks (8kb, graphics information)
-	char control1;	//each bit tells about rom's usage
-	char control2;
-	char ramno;		//no of 8kb ram banks
-	char reserve[7];
+	uint8_t prgromno;	//no of PRG ROM banks (16kb, program code)
+	uint8_t chrromno;	//no of CHR ROM banks (8kb, graphics information)
+	uint8_t control1;	//each bit tells about rom's usage
+	uint8_t control2;
+	uint8_t ramno;		//no of 8kb ram banks
+	uint8_t reserve[7];
 	bool chrrampresent;
 	char *batteryrampointer;	//pointers to bind with main NES structure
 	char *trainerpointer;

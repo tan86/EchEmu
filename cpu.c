@@ -4,8 +4,8 @@
 #include "memory.h"
 #include <stdbool.h>
 #include "cpu.h"
+#include "main.h"
 
-#define DEBUG (1)
 //defining macros for CPU's structure readability 
 
 #define AC (CPU->A)	//Accummulator
@@ -19,6 +19,7 @@
 static uint8_t 		byte1,byte2,memory_val,opcode;
 static uint16_t 	word1,word2,curr_addr;
 static unsigned int clock_check=0;
+static  row,column,block;
 typedef enum addr_mode{
 	IMPLIED,
 	ZEROPAGE,
@@ -166,10 +167,10 @@ void test_flag(cpu* CPU, bool condition, unsigned int f){
 	if (condition) PF=PF | f;
 }
 
-void clear_flag(cpu* CPU, int f){	//clear flag
+void clear_flag(cpu* CPU, uint8_t f){	//clear flag
 	PF = PF &  ~(f);
 }
-void setznflag(cpu* CPU, int value){
+void setznflag(cpu* CPU, uint8_t value){
 	PF=PF & ~(NFLAG | ZFLAG);
 	if(!value) PF |= ZFLAG;
 	else if(value >> 7) PF |= NFLAG;
@@ -294,10 +295,10 @@ uint8_t cycle_count_table[256]={
 
 #define BRK(){											\
 	PC++;												\
-	PUSH((PC>>0) & 0x00FF);								\
 	PUSH((PC>>8) & 0xFF);								\
-	PUSH(PF);											\
-	SETFLAG(B1FLAG);									\
+	PUSH((PC>>0) & 0x00FF);								\
+	PUSH(PF | B1FLAG | B2FLAG);							\
+	SETFLAG(IFLAG);										\
 	PC=READWORD(IRQ);									\
 }
 
@@ -461,9 +462,10 @@ uint8_t cycle_count_table[256]={
 	PF=byte2 & ~(B1FLAG | B2FLAG);						\
 	PF=PF | byte1;										\
 	byte2=POP();										\
-	PC=(byte2<<8);										\
+	PC=(byte2);											\
 	byte2=POP();										\
-	PC|=(byte2);										\
+	PC|=(byte2<<8);										\
+	PF &= ~(IFLAG);										\
 }
 
 #define RTS(){											\
@@ -484,17 +486,17 @@ uint8_t cycle_count_table[256]={
 }
 
 #define SEC(){											\
-	printf("           A:%02X X:%02X Y:%02X PF:%02X ST:%02X",AC,XR, YR,PF,ST);\
+	if(DEBUG) printf("           A:%02X X:%02X Y:%02X PF:%02X ST:%02X",AC,XR, YR,PF,ST);\
 	TSTFLAG(1,CFLAG);									\
 }
 
 #define SED(){											\
-	printf("           A:%02X X:%02X Y:%02X PF:%02X ST:%02X",AC,XR, YR,PF,ST);\
+	if(DEBUG) printf("           A:%02X X:%02X Y:%02X PF:%02X ST:%02X",AC,XR, YR,PF,ST);\
 	TSTFLAG(1,DFLAG);									\
 }
 
 #define SEI(){											\
-	printf("           A:%02X X:%02X Y:%02X PF:%02X ST:%02X",AC,XR, YR,PF,ST);\
+	if(DEBUG) printf("           A:%02X X:%02X Y:%02X PF:%02X ST:%02X",AC,XR, YR,PF,ST);\
 	TSTFLAG(1,IFLAG);									\
 }
 
@@ -556,10 +558,9 @@ void cpu_run(cpu *CPU){
 	CPU->clockcount=0;
 	word1=word2=byte1=byte2=0;
 	clock_check=0;
-	int row,column,block;
-	printf("%04X ",PC);
+	if(DEBUG) printf("%04X ",PC);
 	opcode=READBYTE(PC++);
-	printf("%02X ",opcode);
+	if(DEBUG) printf("%02X ",opcode);
 	//row/column referenced from NESDev's opcode matrix
 	block=(opcode & 0x03);
 	column=(opcode & 0x1f)>>2;	//shifting to needed bits
@@ -920,34 +921,46 @@ void cpu_run(cpu *CPU){
 					break;
 				case 0x1:
 					ZP();
-					READMEMVAR();
 					switch(row){
 						case 0x0:
+							READMEMVAR();
 							ASL();
+							WRITEMEMVAR();
 							break;
 						case 0x1:
+							READMEMVAR();
 							ROL();
+							WRITEMEMVAR();
 							break;
 						case 0x2:
+							READMEMVAR();
 							LSR();
+							WRITEMEMVAR();
 							break;
 						case 0x3:
+							READMEMVAR();
 							ROR();
+							WRITEMEMVAR();
 							break;
 						case 0x4:
 							STX();
+							WRITEMEMVAR();
 							break;
 						case 0x5:
+							READMEMVAR();
 							LDX();
 							break;
 						case 0x6:
+							READMEMVAR();
 							DEC();
+							WRITEMEMVAR();
 							break;
 						case 0x7:
+							READMEMVAR();
 							INC();
+							WRITEMEMVAR();
 							break;
 					}
-					WRITEMEMVAR();
 					break;
 				case 0x2:
 					switch(row){
@@ -987,34 +1000,46 @@ void cpu_run(cpu *CPU){
 					break;
 				case 0x3:
 					AB();
-					READMEMVAR();
 					switch(row){
 						case 0x0:
+							READMEMVAR();
 							ASL();
+							WRITEMEMVAR();
 							break;
 						case 0x1:
+							READMEMVAR();
 							ROL();
+							WRITEMEMVAR();
 							break;
 						case 0x2:
+							READMEMVAR();
 							LSR();
+							WRITEMEMVAR();
 							break;
 						case 0x3:
+							READMEMVAR();
 							ROR();
+							WRITEMEMVAR();
 							break;
 						case 0x4:
 							STX();
+							WRITEMEMVAR();
 							break;
 						case 0x5:
+							READMEMVAR();
 							LDX();
 							break;
 						case 0x6:
+							READMEMVAR();
 							DEC();
+							WRITEMEMVAR();
 							break;
 						case 0x7:
+							READMEMVAR();
 							INC();
+							WRITEMEMVAR();
 							break;
 					}
-					WRITEMEMVAR();
 					break;
 
 				case 0x4:
@@ -1027,26 +1052,30 @@ void cpu_run(cpu *CPU){
 							ZPX();
 							READMEMVAR();
 							ASL();
+							WRITEMEMVAR();
 							break;
 						case 0x1:
 							ZPX();
 							READMEMVAR();
 							ROL();
+							WRITEMEMVAR();
 							break;
 						case 0x2:
 							ZPX();
 							READMEMVAR();
 							LSR();
+							WRITEMEMVAR();
 							break;
 						case 0x3:
 							ZPX();
 							READMEMVAR();
 							ROR();
+							WRITEMEMVAR();
 							break;
 						case 0x4:
 							ZPY();
-							READMEMVAR();
 							STX();
+							WRITEMEMVAR();
 							break;
 						case 0x5:
 							ZPY();
@@ -1057,14 +1086,15 @@ void cpu_run(cpu *CPU){
 							ZPX();
 							READMEMVAR();
 							DEC();
+							WRITEMEMVAR();
 							break;
 						case 0x7:
 							ZPX();
 							READMEMVAR();
 							INC();
+							WRITEMEMVAR();
 							break;
 					}
-					WRITEMEMVAR();
 					break;
 				case 0x6:
 					switch(row){
@@ -1093,24 +1123,28 @@ void cpu_run(cpu *CPU){
 							ABX();
 							READMEMVAR();
 							ASL();
+							WRITEMEMVAR();
 							clock_check++;
 							break;
 						case 0x1:
 							ABX();
 							READMEMVAR();
 							ROL();
+							WRITEMEMVAR();
 							clock_check++;
 							break;
 						case 0x2:
 							ABX();
 							READMEMVAR();
 							LSR();
+							WRITEMEMVAR();
 							clock_check++;
 							break;
 						case 0x3:
 							ABX();
 							READMEMVAR();
 							ROR();
+							WRITEMEMVAR();
 							clock_check++;
 							break;
 						case 0x4:
@@ -1128,16 +1162,17 @@ void cpu_run(cpu *CPU){
 							ABX();
 							READMEMVAR();
 							DEC();
+							WRITEMEMVAR();
 							clock_check++;
 							break;
 						case 0x7:
 							ABX();
 							READMEMVAR();
 							INC();
+							WRITEMEMVAR();
 							clock_check++;
 							break;
 					}
-					WRITEMEMVAR();
 					break;
 			}
 			break;
@@ -1325,14 +1360,119 @@ void cpu_run(cpu *CPU){
 			}
 			break;
 	}
-	if(CPU->innmi){																					
-		PUSH((PC>>0) & 0x00FF);								
-		PUSH((PC>>8) & 0xFF);								
-		PUSH(PF);											
-		SETFLAG(B1FLAG);									
+	if(CPU->innmi){
+		PUSH((PC>>8) & 0xFF);																					
+		PUSH((PC>>0) & 0x00FF);																
+		PUSH(PF | B2FLAG);											
+		SETFLAG(IFLAG);									
 		PC=READWORD(NMI);
 		CPU->innmi=0;
 	}
 	if(clock_check > 2) DECCLOCK
 	if(DEBUG) printf(" Cycle: %d\n", CPU->clockcount);
+}
+
+void write_control_reg(memmap* memory, uint16_t addr, uint8_t data){
+	ppu* PPU = (ppu*) &(((nes*)memory[5].pointer)->PPU);
+	cpu* CPU = (cpu*) &(((nes*)memory[5].pointer)->CPU);
+	switch(addr & 0x1F){
+		case 0x00:
+			break;
+		case 0x01:
+		case 0x02:
+		case 0x03:
+		case 0x04:
+		case 0x05:
+		case 0x06:
+		case 0x07:
+		case 0x08:
+		case 0x09:
+		case 0x0a:
+		case 0x0b:
+		case 0x0c:
+		case 0x0d:
+		case 0x0e:
+		case 0x0f:
+		case 0x10:
+		case 0x11:
+		case 0x12:
+		case 0x13:
+			break;
+		case 0x14:
+			memcpy(PPU->OAMdata, &(CPU->RAM[data >> 8]) , 0xFF);
+			break;
+		case 0x15:
+			break;
+		case 0x16:
+			write_controller(memory, addr, data);
+			break;
+		case 0x17:
+			break;
+		case 0x18:
+			break;
+		case 0x19:
+			break;
+		case 0x1a:
+			break;
+		case 0x1b:
+			break;
+		case 0x1c:
+			break;
+		case 0x1d:
+			break;
+		case 0x1e:
+			break;
+		case 0x1f:
+			break;
+	}
+}
+
+uint8_t read_control_reg(memmap* memory, uint16_t addr){
+	switch(addr & 0x1F){
+		case 0x00:
+		case 0x01:
+		case 0x02:
+		case 0x03:
+		case 0x04:
+		case 0x05:
+		case 0x06:
+		case 0x07:
+		case 0x08:
+		case 0x09:
+		case 0x0a:
+		case 0x0b:
+		case 0x0c:
+		case 0x0d:
+		case 0x0e:
+		case 0x0f:
+		case 0x10:
+		case 0x11:
+		case 0x12:
+		case 0x13:
+		case 0x14:
+		case 0x15:
+			break;
+		case 0x16:
+			return read_controller(memory, addr);
+			break;
+		case 0x17:
+			return read_controller(memory, addr);
+			break;
+		case 0x18:
+			break;
+		case 0x19:
+			break;
+		case 0x1a:
+			break;
+		case 0x1b:
+			break;
+		case 0x1c:
+			break;
+		case 0x1d:
+			break;
+		case 0x1e:
+			break;
+		case 0x1f:
+			break;
+	}
 }

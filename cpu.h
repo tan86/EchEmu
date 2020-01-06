@@ -4,6 +4,9 @@
 #include "memory.h"
 #include "stdbool.h"
 #include "ppu.h"
+
+#define DEBUG (0)
+
 typedef struct{
 	uint8_t A;			//accumulator
 	uint8_t X,Y;    	//multi purpose register
@@ -23,6 +26,7 @@ void cpu_nmi(cpu *CPU, int nmi);//nmi triggered
 void cpu_irq(cpu *CPU, int irq);//irq triggered
 void cpu_run(cpu *CPU); 	//run one CPU clock
 
-
+void write_control_reg(memmap* memory, uint16_t addr, uint8_t byte);
+uint8_t read_control_reg(memmap* memory, uint16_t addr);
 
 #endif

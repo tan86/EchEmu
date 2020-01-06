@@ -30,7 +30,7 @@ void loadcart(cartridge* cart, char* file){
 		printf("Invalied File!!\n");
 		exit(1);
 	}
-	if(batteryramcheck(cart)){
+	if(1){
 		if(!(cart->batteryrampointer=(char*)malloc(BATTERYRAMSIZE))){
 			printf("Failed allocation for battery ram\n");
 			exit(1);

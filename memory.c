@@ -1,6 +1,8 @@
 
 #include "memory.h"
 #include "cpu.h"
+#include "ppu.h"
+#include "input.h"
 
 curr_mem memdata;
 uint8_t temp1,temp2;
@@ -58,8 +60,13 @@ void zpcpuwritew(memmap* cpumap, uint16_t addr, uint16_t word){
 
 void cpuwriteb(memmap* cpumap, uint16_t addr, unsigned char byte){
 	find_memcpu(cpumap,addr);
-	if(memdata.type == PPU_REG){
+	if(memdata.type == PPU_REG)
 		ppu_write_reg(cpumap, addr,byte);
+	else if(memdata.type == CONTROLREG)
+		write_control_reg(cpumap, addr, byte);
+	if((addr & 0xF000) == 0x6000){
+		addr--;
+		addr++;
 	}
 	else *(memdata.pointer)=(uint8_t)byte;
 }
@@ -89,9 +96,10 @@ uint16_t zpcpureadw(memmap* cpumap, uint16_t addr){	//special zero page case
 
 unsigned char cpureadb(memmap* cpumap, uint16_t addr){
 	find_memcpu(cpumap, addr);
-	if(memdata.type == PPU_REG){
-		ppu_read_reg(cpumap, addr);		
-	}
+	if(memdata.type == PPU_REG)
+		return ppu_read_reg(cpumap, addr);		
+	else if(memdata.type == CONTROLREG)
+		return read_control_reg(cpumap, addr);
 	else return *(memdata.pointer);
 }
 unsigned char ppu_readb(memmap* cpumap, uint16_t addr){

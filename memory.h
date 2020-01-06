@@ -30,4 +30,10 @@ uint16_t cpureadw(memmap* cpumap, uint16_t addr);
 void cpuwriteb(memmap* cpumap, uint16_t addr, unsigned char byte);
 
 void cpuwritew(memmap* cpumap, uint16_t addr, uint16_t word);
+
+void ppu_writeb(memmap* cpumap, uint16_t addr, unsigned char byte);
+
+unsigned char ppu_readb(memmap* cpumap, uint16_t addr);
+
+
 #endif

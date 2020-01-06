@@ -139,8 +139,9 @@ uint16_t fetchpalettedata(ppu* PPU, uint16_t tile_addr){
 }
 uint8_t fetchpixel(ppu* PPU, uint16_t tile_addr, uint16_t attribute_addr){
 	uint16_t paldata = fetchpalettedata(PPU, tile_addr);
+	if(!paldata) return 0x0;
 	uint8_t attrdata = attributedata(PPU,attribute_addr);
-	attrdata = extractattribute(PPU->vramaddr, attrdata);
+	attrdata = extractattribute(tile_addr, attrdata);
 	uint8_t pixel = paldata>>(8-FINEX-1) & 1;
 	pixel |= (paldata>>(16-FINEX-1) & 1) << 1;
 	pixel |= attrdata << 2;
@@ -150,7 +151,7 @@ uint8_t fetchpixel(ppu* PPU, uint16_t tile_addr, uint16_t attribute_addr){
 /******************************************/
 
 void ppu_run(ppu* PPU){
-	if(PPU->tick==0 && (PPU->scanline==0)){
+	if(PPU->tick==0 && (PPU->scanline==261)){
 		if(PPU->oddframe) PPU->tick++;
 		PPU->tempfinex = PPU->finex;
 		if(PPU->registers.PPUMASK & (1<<3)){
@@ -158,7 +159,7 @@ void ppu_run(ppu* PPU){
 			PPU->registers.PPUSTATUS=0x0;
 		}
 	}
-	if(PPU->scanline == 241 && PPU->tick == 1){
+	if(PPU->scanline == 240 && PPU->tick == 1){
 		PPU->drawflag=1;
 		if(PPU->registers.PPUMASK & (1<<3))
 			PPU->vramaddr = PPU->tempvramaddr;
@@ -166,9 +167,9 @@ void ppu_run(ppu* PPU){
 		if(PPU->registers.PPUCTRL & (1<<7)) PPU->innmi=1;
 		PPU->framecount++;
 	}
-	else if((PPU->scanline < 241) && (PPU->tick < 257) && (PPU->scanline >0) && (PPU->tick > 0)){
+	else if((PPU->scanline < 240) && (PPU->tick < 257) && (PPU->scanline >= 0) && (PPU->tick > 0)){
 		//render graphics
-		if((PPU->registers.PPUMASK) & (1<<3)){
+		if(SHOWBG){
 			if(PPU->finex == 8 || PPU->tick == 1){
 				if(PPU->finex ==8){
 					PPU->finex=0;
@@ -179,15 +180,15 @@ void ppu_run(ppu* PPU){
 				PPU->vramaddr++;
 			}
 			uint8_t pixel = fetchpixel(PPU, tile_addr, attribute_addr);
-			PPU->gfx[(PPU->scanline-1)*256 + (PPU->tick -1)] = color_palette[PALETTE(pixel)][2] | (color_palette[PALETTE(pixel)][1]<<8) | (color_palette[PALETTE(pixel)][0]<<16);
-			PPU->gfx[(PPU->scanline-1)*256 + (PPU->tick - 1)] |= 0xFF<<24;
+			PPU->gfx[(PPU->scanline)*256 + (PPU->tick -1)] = color_palette[PALETTE(pixel)][2] | (color_palette[PALETTE(pixel)][1]<<8) | (color_palette[PALETTE(pixel)][0]<<16);
+			PPU->gfx[(PPU->scanline)*256 + (PPU->tick - 1)] |= 0xFF<<24;
 			PPU->finex++;
 		}
 	}
-	else if((PPU->tick==257)&&(PPU->scanline != 0)) {
+	else if((PPU->tick==257)&&(PPU->scanline >= 0) && (PPU->scanline < 240)) {
 		/*PPU->vramaddr &= ~(0x41F);
-		PPU->vramaddr |= ((PPU->tempvramaddr & 0x400) | (PPU->tempvramaddr & 0x1F));
-		PPU->registers.OAMADDR=0x0;*/
+		PPU->vramaddr |= ((PPU->tempvramaddr & 0x400) | (PPU->tempvramaddr & 0x1F));*/
+		PPU->registers.OAMADDR=0x0;
 		if(PPU->registers.PPUMASK & (1<<3)){
 			PPU->vramaddr--;		//an additional addition is made during horizontal transition, overflowing to the coarse Y
 			if((PPU->vramaddr & 0x7000) == 0x7000){
@@ -208,9 +209,10 @@ void ppu_run(ppu* PPU){
 		PPU->scanline++;
 		PPU->tick = 0;
 	}
-	if(PPU->scanline == 261) {
+	if(PPU->scanline == 262) {
 		PPU->scanline = 0;
 		PPU->oddframe = !(PPU->oddframe);
+		PPU->registers.PPUSTATUS = 0x0;
 		/*PPU->vramaddr &= ~(0x7BE0);
 		PPU->vramaddr |= (PPU->tempvramaddr & 0x7BE0);*/
 	}
@@ -269,7 +271,7 @@ uint8_t ppu_read_reg(memmap* map, uint16_t addr){
 			if(VRAMADDR < 0x3F00){
 				byte=PPU->readbuffer;
 				PPU->readbuffer=ppu_readb(PPU->ppumap,VRAMADDR);
-				if(!(SHOWBG || SHOWCHR)){
+				if(!RENDER){
 					if((PPU->registers.PPUCTRL) & 0x4) PPU->vramaddr += 32;
 					else PPU->vramaddr++;
 				}
@@ -282,7 +284,7 @@ uint8_t ppu_read_reg(memmap* map, uint16_t addr){
 			else{
 				PPU->readbuffer=ppu_readb(PPU->ppumap,(VRAMADDR & 0x0EFF) | 0x2000);
 				byte = ppu_readb(PPU->ppumap,VRAMADDR);
-				if(!(SHOWBG || SHOWCHR)){
+				if(!RENDER){
 					if((PPU->registers.PPUCTRL) & 0x4) PPU->vramaddr += 32;
 					else PPU->vramaddr++;
 				}	
@@ -311,7 +313,9 @@ void ppu_write_reg(memmap* map, uint16_t addr, uint8_t byte){
 			break;
 		case 0x3:
 			break;
+			PPU->registers.OAMADDR = byte;
 		case 0x4:
+			PPU->OAMpointer[PPU->registers.OAMADDR] = byte;
 			break;
 		case 0x5:
 			if(PPU->toggle){
@@ -348,8 +352,9 @@ void ppu_write_reg(memmap* map, uint16_t addr, uint8_t byte){
 			break;
 		case 0x7:
 			ppu_writeb(PPU->ppumap, VRAMADDR, byte);
-			if(!(PPU->registers.PPUMASK & (1<<3))){
-				if((PPU->registers.PPUCTRL) & (1<<2)) VRAMADDR+=32;
+			if(!RENDER){
+				if((PPU->registers.PPUCTRL) & (1<<2)) 
+					VRAMADDR+=32;
 				else VRAMADDR++;
 			}
 			else{
