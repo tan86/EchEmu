@@ -17,14 +17,13 @@ typedef struct{
 	uint8_t controlregs[20];
 	controller controller1;
 	controller controller2;
-	/*apu APU;
-	mapper MAPPER;*/
-
-	//Memory locations based stuffs
+	/*apu APU;*/
 }nes;
 //initializes the NES structure
 void init_nes(nes* NES, char* game);
 
 void nes_reset(nes* NES);
+
+void free_nes(nes* );
 
 #endif 

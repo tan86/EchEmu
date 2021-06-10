@@ -6,7 +6,6 @@
 #include "cpu.h"
 #include "main.h"
 
-//defining macros for CPU's structure readability 
 
 #define AC (CPU->A)	//Accummulator
 #define XR (CPU->X)	//X register
@@ -15,11 +14,17 @@
 #define ST (CPU->S)	//Stack pointer
 #define PF (CPU->P)	//Flag register
 
-//Variables to transfer data and do operations 
+//Variables to transfer data and do operations and logging stuffs 
 static uint8_t 		byte1,byte2,memory_val,opcode;
-static uint16_t 	word1,word2,curr_addr;
+static uint16_t 	word1,curr_addr;
 static unsigned int clock_check=0;
 static  row,column,block;
+#ifdef DEBUG
+	static char operandbytes[20];
+	static char disass[50];
+	static char disassoperand[30];
+	static char regrecord[50];
+#endif
 typedef enum addr_mode{
 	IMPLIED,
 	ZEROPAGE,
@@ -36,93 +41,113 @@ typedef enum addr_mode{
 #define INCCLOCK CPU->clockcount++;
 #define DECCLOCK CPU->clockcount--;
 
-
-//byte1, byte2, word1 and word2 are all temporary variables
 /****************Macros for easy r/w operations*******************/
 
-#define READMEMVAR() 		memory_val = cpureadb((CPU->cpumap),curr_addr);
-#define WRITEMEMVAR() 		cpuwriteb((CPU->cpumap),curr_addr,memory_val);
-#define READBYTE(addr) 		cpureadb((CPU->cpumap),addr);
-#define READWORD(addr) 		cpureadw((CPU->cpumap),addr);
-#define READZEROWRAP(addr) 	zpcpureadw((CPU->cpumap),addr);
-#define WRITEBYTE(addr,data)cpuwriteb((CPU->cpumap),addr,data);
-#define WRITEW(addr,data) 	cpuwritew((CPU->cpumap),addr,data);
-#define WRITEZW(addr,data) 	zpcpuwritew((CPU->cpumap),addr,data);
-#define WRITEBB() 			cpuwriteb((CPU->cpumap),curr_addr,byte2);
-#define WRITEWB() 			cpuwritew((CPU->cpumap),curr_addr,curr_addr);
-#define WRITEBW() 			cpuwriteb((CPU->cpumap),curr_addr,byte2);
-#define WRITEWW() 			cpuwritew((CPU->cpumap),curr_addr,curr_addr);
+#define READMEMVAR() 		memory_val = cpureadb((CPU->cpumap),curr_addr)
+#define WRITEMEMVAR() 		cpuwriteb((CPU->cpumap),curr_addr,memory_val)
+#define READBYTE(addr) 		cpureadb((CPU->cpumap),addr)
+#define READWORD(addr) 		cpureadw((CPU->cpumap),addr)
+#define READZEROWRAP(addr) 	zpcpureadw((CPU->cpumap),addr)
 
 /******************Addressing modes********************/
 
 void zp(cpu* CPU){				 //zero page
 	curr_addr=READBYTE(PC++);
-	if(DEBUG) printf("%02X         A:%02X X:%02X Y:%02X PF:%02X ST:%02X",
-		curr_addr,AC,XR,YR,PF,ST);
+#ifdef DEBUG
+	sprintf(operandbytes,"%02X",curr_addr);
+	sprintf(disassoperand,"[%02X]",curr_addr);
+#endif
 }
 void zpx(cpu* CPU){				//Indexed Zero Page
 	curr_addr=READBYTE(PC++);
+#ifdef DEBUG
+	sprintf(operandbytes,"%02X",curr_addr);
+#endif
 	curr_addr=(unsigned char)(curr_addr + XR);
-	if(DEBUG) printf("%02X         A:%02X X:%02X Y:%02X PF:%02X ST:%02X",
-		curr_addr,AC,XR,YR,PF,ST);
+#ifdef DEBUG
+	sprintf(disassoperand,"[%02X]", curr_addr);
+#endif
 }
 
 void zpy(cpu* CPU){				//Indexed Zero Page with Y
 	curr_addr=READBYTE(PC++);
+#ifdef DEBUG
+	sprintf(operandbytes,"%02X",curr_addr);
+#endif
 	curr_addr=(unsigned char)(curr_addr + YR);
-	if(DEBUG) printf("%02X         A:%02X X:%02X Y:%02X PF:%02X ST:%02X",
-		curr_addr,AC,XR,YR,PF,ST);
+#ifdef DEBUG
+	sprintf(disassoperand,"[%02X]", curr_addr);
+#endif
 }
 
 void ab(cpu* CPU){				//Absolute addressing
 	curr_addr=READWORD(PC);
+#ifdef DEBUG
+	sprintf(operandbytes,"%02X %02X", (curr_addr & 0xFF), ((curr_addr & 0xFF00) >> 8));
+	sprintf(disassoperand,"[%04X]", curr_addr);
+#endif
 	PC+=2;
-	if(DEBUG) printf("%02X %02X      A:%02X X:%02X Y:%02X PF:%02X ST:%02X",
-		(curr_addr & 0x00ff),(curr_addr & 0xff00)>>8,AC,XR,YR,PF,ST);
 }
 
 void abx(cpu* CPU){				//Absolute addressing indexed with X
 	curr_addr=READWORD(PC);
+#ifdef DEBUG
+	sprintf(operandbytes,"%02X %02X", (curr_addr & 0xFF), ((curr_addr & 0xFF00) >> 8));
+#endif
 	word1=(curr_addr + XR);
 	if(((curr_addr & 0xFF00) != (word1 & 0xFF00))){
 		INCCLOCK;
 		clock_check++;
 	}
 	curr_addr=word1;
+#ifdef DEBUG
+	sprintf(disassoperand,"[%04X]", curr_addr);
+#endif
 	PC+=2;
-	if(DEBUG) printf("%02X %02X      A:%02X X:%02X Y:%02X PF:%02X ST:%02X",
-		(curr_addr & 0x00ff),(curr_addr & 0xff00)>>8,AC,XR,YR,PF,ST);
 }
 
 void aby(cpu* CPU){				//Absolute addressing indexed with Y
 	curr_addr=READWORD(PC);
+#ifdef DEBUG
+	sprintf(operandbytes,"%02X %02X", (curr_addr & 0xFF), ((curr_addr & 0xFF00) >> 8));
+#endif
 	word1=(curr_addr + YR);
 	if(((curr_addr & 0xFF00) != (word1 & 0xFF00))){
 		INCCLOCK;
 		clock_check++;
 	}
 	curr_addr=word1;
+#ifdef DEBUG
+	sprintf(disassoperand,"[%04X]", curr_addr);
+#endif
 	PC+=2;
-	if(DEBUG) printf("%02X %02X      A:%02X X:%02X Y:%02X PF:%02X ST:%02X",
-		(curr_addr & 0x00ff),(curr_addr & 0xff00)>>8,AC,XR,YR,PF,ST);
 }
 
 void im(cpu* CPU){				//Immediate addressing
+#ifdef DEBUG 
+	sprintf(operandbytes,"%02X", READBYTE(PC));
+	sprintf(disassoperand,"%02x", READBYTE(PC));
+#endif
 	curr_addr=(PC++);
-	if(DEBUG) printf("%02X         A:%02X X:%02X Y:%02X PF:%02X ST:%02X",
-		byte2,AC,XR,YR,PF,ST);
 }
 
 void xi(cpu* CPU){				//Indexed Indirect
 	byte1=READBYTE(PC++);
+#ifdef DEBUG
+	sprintf(operandbytes,"%02X", byte1);
+#endif
 	byte1 = byte1 + XR;
 	curr_addr=READZEROWRAP(byte1);
-	if(DEBUG) printf("%02X         A:%02X X:%02X Y:%02X PF:%02X ST:%02X",
-		byte1,AC,XR,YR,PF,ST);
+#ifdef DEBUG
+	sprintf(disassoperand,"[%04X]",curr_addr);
+#endif
 }
 
 void ix(cpu* CPU){				//Indirect Indexed
 	byte1=READBYTE(PC++);
+#ifdef DEBUG
+	sprintf(operandbytes,"%02X", byte1);
+#endif
 	curr_addr=READZEROWRAP(byte1);
 	word1=(curr_addr + YR);
 	if(((curr_addr & 0xFF00) != (word1 & 0xFF00))){
@@ -130,8 +155,9 @@ void ix(cpu* CPU){				//Indirect Indexed
 		clock_check++;
 	}
 	curr_addr=word1;
-	if(DEBUG) printf("%02X         A:%02X X:%02X Y:%02X PF:%02X ST:%02X",
-		byte1,AC,XR,YR,PF,ST);
+#ifdef DEBUG
+	sprintf(disassoperand,"[%04X]",curr_addr);
+#endif
 }
 
 #define ZP() 	zp(CPU);
@@ -215,8 +241,6 @@ void rjump(cpu* CPU, int condition){
 		if((PC & 0xFF00) != (word1 & 0xFF00)) INCCLOCK
 		PC = word1;
 	}
-	if(DEBUG) printf("%02X         A:%02X X:%02X Y:%02X PF:%02X ST:%02X",
-		byte1,AC,XR,YR,PF,ST);
 }
 
 uint8_t cycle_count_table[256]={
@@ -240,6 +264,350 @@ uint8_t cycle_count_table[256]={
 
 
 /***************INSTRUCTIONS******************/
+#ifdef DEBUG 
+#define ADC(){											\
+	strcpy(disass,"ADC ");                              \
+	word1=AC + memory_val + (PF & CFLAG);				\
+	TSTFLAG(word1 > 0xFF,CFLAG);						\
+	TSTFLAG(~(AC^memory_val) & (AC^word1) & 0x80, VFLAG);\
+	AC=(uint16_t)word1;									\
+	TSTFLAG(!AC, ZFLAG);								\
+	TSTFLAG(AC & (1<<7),NFLAG);							\
+}
+
+#define AND(){											\
+	strcpy(disass,"AND ");                              \
+	AC &= memory_val;									\
+	SETZN(AC);											\
+}
+
+//will be using accumulator for $0A case as memory_val in that case
+#define ASL(){											\
+	strcpy(disass,"ASL ");                              \
+	TSTFLAG(memory_val & 0x80, CFLAG);					\
+	memory_val=memory_val<<1;							\
+	SETZN(memory_val);									\
+}
+
+#define BCC(){											\
+	strcpy(disass,"BCC ");                              \
+	RJ(!(PF & CFLAG));									\
+}
+
+#define BCS(){											\
+	strcpy(disass,"BCS ");                              \
+	RJ(PF & CFLAG);										\
+}
+
+#define BEQ(){											\
+	strcpy(disass,"BEQ ");                              \
+	RJ(PF & ZFLAG);										\
+}
+
+#define BIT(){											\
+	strcpy(disass,"BIT ");                              \
+	byte1=AC & memory_val;								\
+	SETZN(byte1);										\
+	TSTFLAG(memory_val & 0x40, VFLAG);					\
+	TSTFLAG(memory_val & 0x80, NFLAG);					\
+}
+
+#define BMI(){											\
+	strcpy(disass,"BMI ");                              \
+	RJ(NFLAG & PF);										\
+}
+
+#define BNE(){											\
+	strcpy(disass,"BNE ");                              \
+	RJ(!(ZFLAG & PF));									\
+}
+
+#define BPL(){											\
+	strcpy(disass,"BPL ");                              \
+	RJ(!(NFLAG & PF));									\
+}
+
+#define BRK(){											\
+	strcpy(disass,"BRK ");                              \
+	PC++;												\
+	PUSH((PC>>8) & 0xFF);								\
+	PUSH((PC>>0) & 0x00FF);								\
+	PUSH(PF | B1FLAG | B2FLAG);							\
+	SETFLAG(IFLAG);										\
+	PC=READWORD(IRQ);									\
+}
+
+#define BVC(){											\
+	strcpy(disass,"BVC ");                              \
+	RJ(!(VFLAG & PF));									\
+}
+
+#define BVS(){											\
+	strcpy(disass,"BVS ");                              \
+	RJ(VFLAG & PF);										\
+}
+
+#define CLC(){											\
+	strcpy(disass,"CLC ");                              \
+	TSTFLAG(0,CFLAG);									\
+}
+
+#define CLD(){											\
+	strcpy(disass,"CLD ");                              \
+	TSTFLAG(0,DFLAG);									\
+}
+
+#define CLI(){											\
+	strcpy(disass,"CLI ");                              \
+	TSTFLAG(0,IFLAG);									\
+}
+
+#define CLV(){											\
+	strcpy(disass,"CLV ");                              \
+	TSTFLAG(0,VFLAG);									\
+}
+
+#define CMP(){											\
+	strcpy(disass,"CMP ");                              \
+	TSTFLAG(AC>=memory_val, CFLAG);						\
+	SETZN((char)(AC - memory_val));						\
+}
+
+#define CPX(){											\
+	strcpy(disass,"CPX ");                              \
+	TSTFLAG(XR>=memory_val, CFLAG);						\
+	SETZN(XR-memory_val);								\
+}
+
+#define CPY(){											\
+	strcpy(disass,"CPY ");                              \
+	TSTFLAG(YR>=memory_val, CFLAG);						\
+	SETZN(YR-memory_val);								\
+}
+
+#define DEC(){											\
+	strcpy(disass,"DEC ");                              \
+	SETZN(--memory_val);								\
+}
+
+#define DEX(){											\
+	strcpy(disass,"DEX ");                              \
+	SETZN(--XR);										\
+}
+
+#define DEY(){											\
+	strcpy(disass,"DEY ");                              \
+	SETZN(--YR);										\
+}
+
+#define EOR(){											\
+	strcpy(disass,"EOR ");                              \
+	AC^=memory_val;										\
+	SETZN(AC);											\
+}
+
+#define INC(){											\
+	strcpy(disass,"INC ");                              \
+	SETZN((unsigned char)++memory_val);					\
+}
+
+#define INX(){											\
+	strcpy(disass,"INX ");                              \
+	SETZN(++XR);										\
+}
+
+#define INY(){											\
+	strcpy(disass,"INY ");                              \
+	SETZN(++YR);										\
+}
+
+#define JMP(){											\
+	strcpy(disass,"JMP ");                              \
+	PC=curr_addr;										\
+}
+
+#define JSR(){											\
+	strcpy(disass,"JSR ");								\
+	word1=PC-1;											\
+	PUSH(( word1 & 0xff00)>>8);							\
+	PUSH( word1 & 0x00ff);								\
+	PC=curr_addr;										\
+}
+
+#define LDA(){											\
+	strcpy(disass,"LDA ");                              \
+	AC=memory_val;										\
+	SETZN(memory_val);									\
+}
+
+#define LDX(){											\
+	strcpy(disass,"LDX ");                              \
+	XR=memory_val;										\
+	SETZN(XR);											\
+}
+
+#define LDY(){											\
+	strcpy(disass,"LDY ");                              \
+	YR=memory_val;										\
+	SETZN(YR);											\
+}
+
+#define LSR(){											\
+	strcpy(disass,"LSR ");                              \
+	TSTFLAG((memory_val & 0x01), CFLAG);				\
+	memory_val = memory_val>>1;							\
+	SETZN(memory_val);									\
+}
+
+#define NOP(){ \
+	strcpy(disass,"NOP ");                              \
+}
+
+#define ORA(){											\
+	strcpy(disass,"ORA ");                              \
+	AC|=memory_val;										\
+	SETZN(AC);											\
+}
+
+#define PHA(){											\
+	strcpy(disass,"PHA ");                              \
+	PUSH(AC);											\
+}
+
+#define PHP(){											\
+	strcpy(disass,"PHP ");                              \
+	PUSH((PF | 0x30));									\
+}
+
+#define PLA(){											\
+	strcpy(disass,"PLA ");                              \
+	AC=POP();											\
+	SETZN(AC);											\
+}
+
+#define PLP(){											\
+	strcpy(disass,"PLP ");                              \
+	byte2=POP();										\
+	byte1=(PF & (B1FLAG | B2FLAG));						\
+	PF=byte2 & ~(B1FLAG | B2FLAG);						\
+	PF=PF | byte1;										\
+}
+
+#define ROL(){											\
+	strcpy(disass,"ROL ");                              \
+	byte1=(PF & CFLAG);									\
+	TSTFLAG(memory_val & 0x80, CFLAG);					\
+	memory_val=memory_val<<1;							\
+	memory_val|=byte1;									\
+	SETZN(memory_val);									\
+}
+
+#define ROR(){											\
+	strcpy(disass,"ROR ");                              \
+	byte1=(PF & CFLAG);									\
+	TSTFLAG(memory_val & 0x01, CFLAG);					\
+	memory_val= memory_val>>1 ; 						\
+	memory_val|= (byte1<<7);							\
+	SETZN(memory_val);									\
+}
+
+#define RTI(){											\
+	strcpy(disass,"RTI ");                              \
+	byte2=POP();										\
+	byte1=(PF & (B1FLAG | B2FLAG));						\
+	PF=byte2 & ~(B1FLAG | B2FLAG);						\
+	PF=PF | byte1;										\
+	byte2=POP();										\
+	PC=(byte2);											\
+	byte2=POP();										\
+	PC|=(byte2<<8);										\
+	PF &= ~(IFLAG);										\
+}
+
+#define RTS(){											\
+	strcpy(disass,"RTS ");                              \
+	byte2=POP();										\
+	PC=byte2;											\
+	byte2=POP();										\
+	PC|=(byte2)<<8;										\
+	PC++;												\
+}
+
+#define SBC(){											\
+	strcpy(disass,"SBC ");                              \
+	word1=AC- memory_val - (1-(PF & CFLAG));			\
+	TSTFLAG(word1<0x100, CFLAG);						\
+	TSTFLAG((AC^memory_val) & (AC^word1) & 0x80, VFLAG);\
+	AC=(char)word1;										\
+	SETZN(AC);											\
+}
+
+#define SEC(){											\
+	strcpy(disass,"SEC ");                              \
+	TSTFLAG(1,CFLAG);									\
+}
+
+#define SED(){											\
+	strcpy(disass,"SED ");                              \
+	TSTFLAG(1,DFLAG);									\
+}
+
+#define SEI(){											\
+	strcpy(disass,"SEI ");                              \
+	TSTFLAG(1,IFLAG);									\
+}
+
+#define STA(){											\
+	strcpy(disass,"STA ");                              \
+	memory_val=AC;										\
+}
+
+#define STX(){											\
+	strcpy(disass,"STX ");                              \
+	memory_val=XR;										\
+}
+
+#define STY(){											\
+	strcpy(disass,"STY ");                              \
+	memory_val=YR;										\
+}
+
+#define TAX(){											\
+	strcpy(disass,"TAX ");                              \
+	XR=AC;												\
+	SETZN(XR);											\
+}
+
+#define TAY(){											\
+	strcpy(disass,"TAY ");                              \
+	YR=AC;												\
+	SETZN(YR);											\
+}
+
+#define TSX(){											\
+	strcpy(disass,"TSX ");                              \
+	XR=ST;												\
+	SETZN(XR);											\
+}
+
+#define TXA(){											\
+	strcpy(disass,"TXA ");                              \
+	AC=XR;												\
+	SETZN(AC);											\
+}
+
+#define TXS(){											\
+	strcpy(disass,"TXS ");                              \
+	ST=XR;												\
+}
+
+#define TYA(){											\
+	strcpy(disass,"TYA ");                              \
+	AC=YR;												\
+	SETZN(AC);											\
+}
+
+#else 
 
 #define ADC(){											\
 	word1=AC + memory_val + (PF & CFLAG);				\
@@ -311,22 +679,18 @@ uint8_t cycle_count_table[256]={
 }
 
 #define CLC(){											\
-	if(DEBUG) printf("           A:%02X X:%02X Y:%02X PF:%02X ST:%02X",AC,XR, YR,PF,ST);\
 	TSTFLAG(0,CFLAG);									\
 }
 
 #define CLD(){											\
-	if(DEBUG) printf("           A:%02X X:%02X Y:%02X PF:%02X ST:%02X",AC,XR, YR,PF,ST);\
 	TSTFLAG(0,DFLAG);									\
 }
 
 #define CLI(){											\
-	if(DEBUG) printf("           A:%02X X:%02X Y:%02X PF:%02X ST:%02X",AC,XR, YR,PF,ST);\
 	TSTFLAG(0,IFLAG);									\
 }
 
 #define CLV(){											\
-	if(DEBUG) printf("           A:%02X X:%02X Y:%02X PF:%02X ST:%02X",AC,XR, YR,PF,ST);\
 	TSTFLAG(0,VFLAG);									\
 }
 
@@ -407,7 +771,6 @@ uint8_t cycle_count_table[256]={
 }
 
 #define NOP(){ \
-	if(DEBUG) printf("           A:%02X X:%02X Y:%02X PF:%02X ST:%02X",AC,XR, YR,PF,ST);\
 }
 
 #define ORA(){											\
@@ -416,23 +779,19 @@ uint8_t cycle_count_table[256]={
 }
 
 #define PHA(){											\
-	if(DEBUG) printf("           A:%02X X:%02X Y:%02X PF:%02X ST:%02X",AC,XR, YR,PF,ST);\
 	PUSH(AC);											\
 }
 
 #define PHP(){											\
-	if(DEBUG) printf("           A:%02X X:%02X Y:%02X PF:%02X ST:%02X",AC,XR, YR,PF,ST);\
 	PUSH((PF | 0x30));									\
 }
 
 #define PLA(){											\
-	if(DEBUG) printf("           A:%02X X:%02X Y:%02X PF:%02X ST:%02X",AC,XR, YR,PF,ST);\
 	AC=POP();											\
 	SETZN(AC);											\
 }
 
 #define PLP(){											\
-	if(DEBUG) printf("           A:%02X X:%02X Y:%02X PF:%02X ST:%02X",AC,XR, YR,PF,ST);\
 	byte2=POP();										\
 	byte1=(PF & (B1FLAG | B2FLAG));						\
 	PF=byte2 & ~(B1FLAG | B2FLAG);						\
@@ -456,7 +815,6 @@ uint8_t cycle_count_table[256]={
 }
 
 #define RTI(){											\
-	if(DEBUG) printf("           A:%02X X:%02X Y:%02X PF:%02X ST:%02X",AC,XR, YR,PF,ST);\
 	byte2=POP();										\
 	byte1=(PF & (B1FLAG | B2FLAG));						\
 	PF=byte2 & ~(B1FLAG | B2FLAG);						\
@@ -469,7 +827,6 @@ uint8_t cycle_count_table[256]={
 }
 
 #define RTS(){											\
-	if(DEBUG) printf("           A:%02X X:%02X Y:%02X PF:%02X ST:%02X",AC,XR, YR,PF,ST);\
 	byte2=POP();										\
 	PC=byte2;											\
 	byte2=POP();										\
@@ -486,17 +843,14 @@ uint8_t cycle_count_table[256]={
 }
 
 #define SEC(){											\
-	if(DEBUG) printf("           A:%02X X:%02X Y:%02X PF:%02X ST:%02X",AC,XR, YR,PF,ST);\
 	TSTFLAG(1,CFLAG);									\
 }
 
 #define SED(){											\
-	if(DEBUG) printf("           A:%02X X:%02X Y:%02X PF:%02X ST:%02X",AC,XR, YR,PF,ST);\
 	TSTFLAG(1,DFLAG);									\
 }
 
 #define SEI(){											\
-	if(DEBUG) printf("           A:%02X X:%02X Y:%02X PF:%02X ST:%02X",AC,XR, YR,PF,ST);\
 	TSTFLAG(1,IFLAG);									\
 }
 
@@ -540,7 +894,7 @@ uint8_t cycle_count_table[256]={
 	AC=YR;												\
 	SETZN(AC);											\
 }
-
+#endif
 /****************INSTRUCTIONS END HERE*****************/
 
 /****************CPU Initialization********************/
@@ -556,20 +910,30 @@ void cpu_init(cpu *CPU){
 }
 void cpu_run(cpu *CPU){
 	CPU->clockcount=0;
-	word1=word2=byte1=byte2=0;
+	word1=byte1=byte2=0;
 	clock_check=0;
-	if(DEBUG) printf("%04X ",PC);
+#ifdef DEBUG
+	printf("%04X: ", PC);
+	//prepare for disassembly 
+	*disass = '\0';
+	*disassoperand = '\0';
+	*regrecord = '\0';
+	*operandbytes = '\0';
+
+#endif
 	opcode=READBYTE(PC++);
-	if(DEBUG) printf("%02X ",opcode);
 	//row/column referenced from NESDev's opcode matrix
 	block=(opcode & 0x03);
 	column=(opcode & 0x1f)>>2;	//shifting to needed bits
 	row=(opcode &  0xe0)>>5;
 	CPU->clockcount+=cycle_count_table[opcode & 0xFF];
+#ifdef DEBUG
+	printf("%02X ", opcode);
+	sprintf(regrecord,"A:%02X X:%02X Y:%02X P:%02X S:%02X", AC, XR, YR, PF, ST);
+#endif
 	switch(block){
 		case 0x0:
 			//control block
-			//there are less patterns here so it could be mess to interpret
 			switch(column){
 				case 0x0:
 					switch(row){
@@ -801,6 +1165,9 @@ void cpu_run(cpu *CPU){
 							NOP();
 							break;
 						case 0x4:
+#ifdef DEBUG
+							strcpy(disass,"SHY ");
+#endif
 							memory_val=YR & (((PC & 0xff00)>>8)-1);
 							WRITEMEMVAR();
 							clock_check++;
@@ -819,7 +1186,6 @@ void cpu_run(cpu *CPU){
 			break;
 		case 0x1:
 			//ALU block
-			//has some patterns this time to make it quick to code
 			switch(column){
 				case 0x0:
 					INDX();
@@ -873,6 +1239,9 @@ void cpu_run(cpu *CPU){
 						break;
 					}
 					else{
+#ifdef DEBUG
+						strcpy(disass,"STA ");
+#endif
 						memory_val=AC;
 						WRITEMEMVAR();
 					}
@@ -893,7 +1262,6 @@ void cpu_run(cpu *CPU){
 			break;
 		case 0x2:
 			//RMW block
-			//another confusing block of switch, I will try to be optimizing it as time passes
 			switch(column){
 				case 0x0:
 					switch(row){
@@ -1148,6 +1516,9 @@ void cpu_run(cpu *CPU){
 							clock_check++;
 							break;
 						case 0x4:
+#ifdef DEBUG
+							strcpy(disass,"SHX ");
+#endif
 							ABY();
 							clock_check++;
 							READMEMVAR();
@@ -1179,6 +1550,9 @@ void cpu_run(cpu *CPU){
 
 		case 0x3:
 			//unofficial blocks
+#ifdef DEBUG
+			strcpy(disass,"(unofficial)");
+#endif
 			switch(column){
 				case 0x0:
 					INDX();
@@ -1369,7 +1743,10 @@ void cpu_run(cpu *CPU){
 		CPU->innmi=0;
 	}
 	if(clock_check > 2) DECCLOCK
-	if(DEBUG) printf(" Cycle: %d\n", CPU->clockcount);
+#ifdef DEBUG 
+	strcat(disass,disassoperand);
+	printf("%-10s %-30s %-50s \n", operandbytes, disass, regrecord);
+#endif
 }
 
 void write_control_reg(memmap* memory, uint16_t addr, uint8_t data){
@@ -1399,7 +1776,7 @@ void write_control_reg(memmap* memory, uint16_t addr, uint8_t data){
 		case 0x13:
 			break;
 		case 0x14:
-			memcpy(PPU->OAMdata, &(CPU->RAM[data >> 8]) , 0xFF);
+			memcpy(PPU->OAMdata, &(CPU->RAM[data << 8]) , 256);
 			break;
 		case 0x15:
 			break;

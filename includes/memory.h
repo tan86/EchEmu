@@ -3,7 +3,7 @@
 #include <stdint.h>
 
 typedef enum{
-	RAMT, PPU_REG, CONTROLREG
+	RAMT, PPU_REG, CONTROLREG, PALETTE
 }memtype;
 
 typedef struct{	
@@ -13,15 +13,9 @@ typedef struct{
 	memtype type;
 }memmap;
 
-typedef struct{
-	memtype type;
-	uint8_t *pointer;
-}curr_mem;
-
-//registers all the implemented register and memory which are to be accessed 
 void registermem(memmap *memory,uint32_t size, uint16_t start, unsigned char *pointer, memtype type);
 
-void find_memcpu(memmap* memory, uint16_t addr);
+uint8_t* find_memcpu(memmap* memory, uint16_t addr, memtype* type);
 
 unsigned char cpureadb(memmap* cpumap, uint16_t addr);
 

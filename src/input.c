@@ -45,7 +45,7 @@ void write_controller(memmap* memory, uint16_t addr, uint8_t data){
 }
 
 void poll_input(controller* pad, uint8_t* state){
-	SDL_PumpEvents();
+	//SDL_PumpEvents();
 	pad->data0 = 0x0;
 	for(int i=0; i<8; i++){
 		pad->data0 |= state[keymap[i]] * (1<<i);
