@@ -1,4 +1,4 @@
-# NESemu
+# EchEmu
 An attempt to create a decent NES emulator
 
 ## Note
