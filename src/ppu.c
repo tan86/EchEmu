@@ -162,15 +162,10 @@ void updateshifters(ppu* PPU){
 
 void ppu_run(ppu* PPU){
 	if((((PPU->scanline >= 0) && (PPU->scanline < 240)) || (PPU->scanline == 261)) && (SHOWBG || SHOWCHR)){
-		//this block consitutes almost all of the rendering operations that happen inside the PPU
 		if(((PPU->tick > 0) && (PPU->tick <= 257)) || ((PPU->tick >= 321) && (PPU->tick <= 337))){
-			//outer condition allows in the dot 1 and dot 321, though they are not shifted, might not be optimal way to do this, but accurate
 			if(!(PPU->tick == 321 || PPU->tick == 1)) updateshifters(PPU);
-			//at dot 1 we are not supposed to do any memory access, and using tile id from dot 337
-			//mayabe it's not so accurate to do it this way if non practically observed , I will probably fix this in future 
 			if(PPU->tick!=1)
 				switch((PPU->tick - 1)%8){
-					//memory accesses at different stages of cycles, some complicated binary operations here and there
 					case 0:
 						loadshifters(PPU);
 						next_tile_id = ppu_readb(PPU->ppumap, 0x2000 | (PPU->vramaddr & 0x0FFF));
@@ -198,7 +193,7 @@ void ppu_run(ppu* PPU){
 				if((PPU->tick > 0) && (PPU->tick < 257)){
 					uint8_t pixel = 0,palette = 0;
 					uint8_t bgpixel = 0 , bgpalette = 0, fgpixel = 0, fgpalette = 0,fgpriority = 0;
-					//doing the Secondary OAM clearing process in one go, otherwise should be done one byte per two PPU cycles
+					//doing the Secondary OAM clearing process in one go, everyone recommended so but less accurate
 					if(PPU->tick == 1){
 						OAMentry = 0;
 						n = m = 0;
@@ -207,11 +202,8 @@ void ppu_run(ppu* PPU){
 						PPU->OAMpointer = ((char*)PPU->OAMdata) + PPU->registers.OAMADDR;
 						zerosprflag = 0;
 					}
-					//a note if you are reading this and doubtful of this spaghetti code
-					//second part of sprite evaluation goes on here, to avoid bloated conditionals, and be tiny bit efficient without huge overhauls of code
-					//I have put the rest, third part, of sprite evaluation happening at ticks 257 - 320 later on in topmost if block of ppu_run , hope it helps : ) 
+
 					else if(PPU->tick >= 65){
-						//use of wait is just to add some kind of accuracy, if that matters Maybe it will have some implications in case of specific games 
 						if(!wait){
 							uint8_t y = *((uint8_t*)PPU->OAMpointer + n*4);
 							uint8_t diff = PPU->scanline - y;
@@ -285,12 +277,10 @@ void ppu_run(ppu* PPU){
 		if(PPU->tick >= 257 || PPU->tick <= 320 ) PPU->registers.OAMADDR = 0;
 		if (PPU->tick == 257){
 			horittov(PPU);
-			//not sure if this needs to be done since shifters will be zeroed out anyways. WIll remove if it does not do much
 			memset(spritex,0,8);
 			memset(spriteattr,0,8);
 			memset(spritereg1,0,8);
 			memset(spritereg2,0,8);
-			// I am opting to do the whole sprite shifters, latches and counter update in one go
 			for(int i = 0; i < 8; i++){
 				if(PPU->currOAM[i].xpos == 0xFF)
 					break;
@@ -350,7 +340,6 @@ void ppu_run(ppu* PPU){
 		}
 		if(PPU->tick == 256)
 			incrementy(PPU);
-		//special scanline 261 operations 
 		if(PPU->scanline == 261){
 			if(PPU->tick == 1)
 				PPU->registers.PPUSTATUS = 0x0;

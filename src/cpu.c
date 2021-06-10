@@ -6,7 +6,6 @@
 #include "cpu.h"
 #include "main.h"
 
-//defining macros for CPU's structure readability 
 
 #define AC (CPU->A)	//Accummulator
 #define XR (CPU->X)	//X register
@@ -21,11 +20,10 @@ static uint16_t 	word1,curr_addr;
 static unsigned int clock_check=0;
 static  row,column,block;
 #ifdef DEBUG
-	//mainly all disassembling will be done while executing, doing it other way just seems very redundant to me, though there could be a better way
 	static char operandbytes[20];
 	static char disass[50];
 	static char disassoperand[30];
-	static char regrecord[50]; //it's to be able to see the status of flags before the execution happened, I just thought it will be better to look at and track the instructions 
+	static char regrecord[50];
 #endif
 typedef enum addr_mode{
 	IMPLIED,
@@ -43,8 +41,6 @@ typedef enum addr_mode{
 #define INCCLOCK CPU->clockcount++;
 #define DECCLOCK CPU->clockcount--;
 
-
-//byte1, byte2, and word1 are all temporary variables
 /****************Macros for easy r/w operations*******************/
 
 #define READMEMVAR() 		memory_val = cpureadb((CPU->cpumap),curr_addr)
@@ -52,17 +48,8 @@ typedef enum addr_mode{
 #define READBYTE(addr) 		cpureadb((CPU->cpumap),addr)
 #define READWORD(addr) 		cpureadw((CPU->cpumap),addr)
 #define READZEROWRAP(addr) 	zpcpureadw((CPU->cpumap),addr)
-/*#define WRITEBYTE(addr,data)cpuwriteb((CPU->cpumap),addr,data);
-#define WRITEW(addr,data) 	cpuwritew((CPU->cpumap),addr,data);
-#define WRITEZW(addr,data) 	zpcpuwritew((CPU->cpumap),addr,data);
-#define WRITEBB() 			cpuwriteb((CPU->cpumap),curr_addr,byte2);
-#define WRITEWB() 			cpuwritew((CPU->cpumap),curr_addr,curr_addr);
-#define WRITEBW() 			cpuwriteb((CPU->cpumap),curr_addr,byte2);
-#define WRITEWW() 			cpuwritew((CPU->cpumap),curr_addr,curr_addr);*/
 
 /******************Addressing modes********************/
-/*******might seem bit ugly but I put my operand logging code in here too with opcode to avoid complications in printing multiple times*****/
-/*for now, this seems best way to avoid redundancy*/
 
 void zp(cpu* CPU){				 //zero page
 	curr_addr=READBYTE(PC++);
@@ -947,7 +934,6 @@ void cpu_run(cpu *CPU){
 	switch(block){
 		case 0x0:
 			//control block
-			//there are less patterns here so it could be mess to interpret
 			switch(column){
 				case 0x0:
 					switch(row){
@@ -1200,7 +1186,6 @@ void cpu_run(cpu *CPU){
 			break;
 		case 0x1:
 			//ALU block
-			//has some patterns this time to make it quick to code
 			switch(column){
 				case 0x0:
 					INDX();
@@ -1277,7 +1262,6 @@ void cpu_run(cpu *CPU){
 			break;
 		case 0x2:
 			//RMW block
-			//another confusing block of switch, I will try to be optimizing it as time passes
 			switch(column){
 				case 0x0:
 					switch(row){
@@ -1566,7 +1550,6 @@ void cpu_run(cpu *CPU){
 
 		case 0x3:
 			//unofficial blocks
-			//I created a problem here, will be hard to write Debug statements so I will pass it for now till it seems useful
 #ifdef DEBUG
 			strcpy(disass,"(unofficial)");
 #endif

@@ -5,6 +5,7 @@
 #include "cpu.h"
 #include <stdbool.h>
 #include "memory.h"
+#include <time.h>
 
 const int SCREEN_HEIGHT=240;
 const int SCREEN_WIDTH=256;
@@ -40,8 +41,6 @@ int main(int argc, char *argv[]){
     const uint8_t *state = SDL_GetKeyboardState(NULL);
 
 	for(;;){
-		static float max_time = 0.0;
-		int endtime, starttime;
 		//poll events if controller's strobe is high
 		SDL_PumpEvents();
 		if(NES->controller1.strobe)
@@ -67,7 +66,6 @@ int main(int argc, char *argv[]){
 				SDL_RenderPresent(renderer);
 			}
 		}
-		//printf("Time taken to run PPU (3*CPU cycles) times :- %f\n",(double)(endtime- starttime)/SDL_GetPerformanceFrequency());
 	}
 	SDL_DestroyTexture(sdlTexture);
 	SDL_DestroyRenderer(renderer);
@@ -87,7 +85,7 @@ void init_nes(nes* NES, char* game){
 
 	NES->CPU.RAM = (char*)malloc(0x2000 * sizeof(char));
 
-	/**might make working with mapper easier later by having a dynamic memory range setting function, will remove if it just causes more headache for nothing***/
+	/**might make working with mappers easier later***/
 	registermem(&(NES->CPU.cpumap[0]), 2048,						0x0000,NES->CPU.RAM,RAMT);
 	registermem(&(NES->CPU.cpumap[1]), 8,							0x2000,&(NES->PPU.registers),PPU_REG);
 	registermem(&(NES->CPU.cpumap[2]), 0x20,						0x4000,NES->controlregs,CONTROLREG);

@@ -34,15 +34,13 @@ uint8_t* find_memppu(memmap* memory, uint16_t addr, memtype* type){
 	}
 }
 
-/********following commented functions turned out to be redundant at end, still keeping them here because why not ********/
-
+/****redundant functions***/
 /*void cpuwritew(memmap* cpumap, uint16_t addr, uint16_t word){
 	(find_memcpu(cpumap,addr));
 	*(memdata.pointer)=(uint8_t)(word & 0x00ff);
 	(find_memcpu(cpumap,addr+1));
 	*(memdata.pointer)=(uint8_t)((word & 0xff00)>>8);
 }
-
 void zpcpuwritew(memmap* cpumap, uint16_t addr, uint16_t word){
 	if(addr==0xff){
 		(find_memcpu(cpumap,0xff));

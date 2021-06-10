@@ -12,8 +12,8 @@ Update:- Implemented PPU with scrolling and some other stuffs. Can boot many NRO
 3. Do performance improvements
 
 ## Controls 
-WASD = D-Pad
-K = A button
-L = B button
-V = Select
-B = Start
+WASD = D-Pad  
+K = A button  
+L = B button  
+V = Select  
+B = Start  

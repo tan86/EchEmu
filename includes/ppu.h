@@ -40,9 +40,6 @@ typedef struct {
 	bool toggle;
 	bool innmi;
 	uint8_t readbuffer;
-	/*uint8_t patterntable[2][0x1000];
-	uint8_t nametable[4*16*16*16];
-	uint32_t gfx[256*240];*/
 	uint8_t*  palette;
 	uint8_t* patterntable;
 	uint8_t* nametable;

@@ -22,7 +22,7 @@ enum mirror{
 };
 
 typedef struct{
-	char type[4];	//type of rom file, iNES/UNIF/etc
+	char type[4];		//type of rom file, iNES/UNIF/etc
 	uint8_t prgromno;	//no of PRG ROM banks (16kb, program code)
 	uint8_t chrromno;	//no of CHR ROM banks (8kb, graphics information)
 	uint8_t control1;	//each bit tells about rom's usage
