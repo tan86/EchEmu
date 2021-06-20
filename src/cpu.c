@@ -1773,103 +1773,26 @@ void write_control_reg(memmap* memory, uint16_t addr, uint8_t data) {
   ppu* PPU = (ppu*)&(((nes*)memory[5].pointer)->PPU);
   cpu* CPU = (cpu*)&(((nes*)memory[5].pointer)->CPU);
   switch (addr & 0x1F) {
-    case 0x00:
-      break;
-    case 0x01:
-    case 0x02:
-    case 0x03:
-    case 0x04:
-    case 0x05:
-    case 0x06:
-    case 0x07:
-    case 0x08:
-    case 0x09:
-    case 0x0a:
-    case 0x0b:
-    case 0x0c:
-    case 0x0d:
-    case 0x0e:
-    case 0x0f:
-    case 0x10:
-    case 0x11:
-    case 0x12:
-    case 0x13:
-      break;
     case 0x14:
       memcpy(PPU->OAMdata, &(CPU->RAM[data << 8]), 256);
-      break;
-    case 0x15:
       break;
     case 0x16:
       write_controller(memory, addr, data);
       break;
-    case 0x17:
-      break;
-    case 0x18:
-      break;
-    case 0x19:
-      break;
-    case 0x1a:
-      break;
-    case 0x1b:
-      break;
-    case 0x1c:
-      break;
-    case 0x1d:
-      break;
-    case 0x1e:
-      break;
-    case 0x1f:
+      default:
       break;
   }
 }
 
 uint8_t read_control_reg(memmap* memory, uint16_t addr) {
   switch (addr & 0x1F) {
-    case 0x00:
-    case 0x01:
-    case 0x02:
-    case 0x03:
-    case 0x04:
-    case 0x05:
-    case 0x06:
-    case 0x07:
-    case 0x08:
-    case 0x09:
-    case 0x0a:
-    case 0x0b:
-    case 0x0c:
-    case 0x0d:
-    case 0x0e:
-    case 0x0f:
-    case 0x10:
-    case 0x11:
-    case 0x12:
-    case 0x13:
-    case 0x14:
-    case 0x15:
-      break;
     case 0x16:
       return read_controller(memory, addr);
       break;
     case 0x17:
       return read_controller(memory, addr);
       break;
-    case 0x18:
+    default:
       break;
-    case 0x19:
-      break;
-    case 0x1a:
-      break;
-    case 0x1b:
-      break;
-    case 0x1c:
-      break;
-    case 0x1d:
-      break;
-    case 0x1e:
-      break;
-    case 0x1f:
-      break;
-  }
+ }
 }
