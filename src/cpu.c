@@ -19,12 +19,22 @@ static uint8_t byte1, byte2, memory_val, opcode;
 static uint16_t word1, curr_addr;
 static unsigned int clock_check = 0;
 static row, column, block;
+
 #ifdef DEBUG
 static char operandbytes[20];
 static char disass[50];
 static char disassoperand[30];
 static char regrecord[50];
+
+#define LOG_OPERANDBYTE(x)     sprintf(operandbytes, "%02X", x)
+#define LOG_OPERANDBYTES(x, y) sprintf(operandbytes, "%02X %02X", x, y)
+#define LOG_DISASSOPERAND(x)   sprintf(disassoperand, "[%04X]", x)
+#else
+#define LOG_OPERANDBYTE(x)
+#define LOG_OPERANDBYTES(x, y)
+#define LOG_DISASSOPERAND(x)
 #endif
+
 typedef enum addr_mode {
   IMPLIED,
   ZEROPAGE,
@@ -42,7 +52,6 @@ typedef enum addr_mode {
 #define DECCLOCK CPU->clockcount--;
 
 /****************Macros for easy r/w operations*******************/
-
 #define READMEMVAR()       memory_val = cpureadb((CPU->cpumap), curr_addr)
 #define WRITEMEMVAR()      cpuwriteb((CPU->cpumap), curr_addr, memory_val)
 #define READBYTE(addr)     cpureadb((CPU->cpumap), addr)
@@ -50,107 +59,80 @@ typedef enum addr_mode {
 #define READZEROWRAP(addr) zpcpureadw((CPU->cpumap), addr)
 
 /******************Addressing modes********************/
-
 void zp(cpu* CPU) {  // zero page
   curr_addr = READBYTE(PC++);
-#ifdef DEBUG
-  sprintf(operandbytes, "%02X", curr_addr);
-  sprintf(disassoperand, "[%02X]", curr_addr);
-#endif
+  LOG_OPERANDBYTE(curr_addr);
+  LOG_DISASSOPERAND(curr_addr);
 }
+
 void zpx(cpu* CPU) {  // Indexed Zero Page
   curr_addr = READBYTE(PC++);
-#ifdef DEBUG
-  sprintf(operandbytes, "%02X", curr_addr);
-#endif
+  LOG_OPERANDBYTE(curr_addr);
   curr_addr = (unsigned char)(curr_addr + XR);
-#ifdef DEBUG
-  sprintf(disassoperand, "[%02X]", curr_addr);
-#endif
+  LOG_DISASSOPERAND(curr_addr);
 }
 
 void zpy(cpu* CPU) {  // Indexed Zero Page with Y
   curr_addr = READBYTE(PC++);
-#ifdef DEBUG
-  sprintf(operandbytes, "%02X", curr_addr);
-#endif
+  LOG_OPERANDBYTE(curr_addr);
   curr_addr = (unsigned char)(curr_addr + YR);
-#ifdef DEBUG
-  sprintf(disassoperand, "[%02X]", curr_addr);
-#endif
+  LOG_DISASSOPERAND(curr_addr);
 }
 
 void ab(cpu* CPU) {  // Absolute addressing
   curr_addr = READWORD(PC);
-#ifdef DEBUG
-  sprintf(operandbytes, "%02X %02X", (curr_addr & 0xFF),
-          ((curr_addr & 0xFF00) >> 8));
-  sprintf(disassoperand, "[%04X]", curr_addr);
-#endif
+  LOG_OPERANDBYTES((curr_addr & 0xFF), ((curr_addr & 0xFF00) >> 8));
+  LOG_DISASSOPERAND(curr_addr);
   PC += 2;
 }
 
 void abx(cpu* CPU) {  // Absolute addressing indexed with X
   curr_addr = READWORD(PC);
-#ifdef DEBUG
-  sprintf(operandbytes, "%02X %02X", (curr_addr & 0xFF),
-          ((curr_addr & 0xFF00) >> 8));
-#endif
+  LOG_OPERANDBYTES((curr_addr & 0xFF), ((curr_addr & 0xFF00) >> 8));
+
   word1 = (curr_addr + XR);
   if (((curr_addr & 0xFF00) != (word1 & 0xFF00))) {
     INCCLOCK;
     clock_check++;
   }
   curr_addr = word1;
-#ifdef DEBUG
-  sprintf(disassoperand, "[%04X]", curr_addr);
-#endif
+  LOG_DISASSOPERAND(curr_addr);
   PC += 2;
 }
 
 void aby(cpu* CPU) {  // Absolute addressing indexed with Y
   curr_addr = READWORD(PC);
-#ifdef DEBUG
-  sprintf(operandbytes, "%02X %02X", (curr_addr & 0xFF),
-          ((curr_addr & 0xFF00) >> 8));
-#endif
+  LOG_OPERANDBYTES((curr_addr & 0xFF), ((curr_addr & 0xFF00) >> 8));
+
   word1 = (curr_addr + YR);
   if (((curr_addr & 0xFF00) != (word1 & 0xFF00))) {
     INCCLOCK;
     clock_check++;
   }
   curr_addr = word1;
-#ifdef DEBUG
-  sprintf(disassoperand, "[%04X]", curr_addr);
-#endif
+  LOG_DISASSOPERAND(curr_addr);
   PC += 2;
 }
 
 void im(cpu* CPU) {  // Immediate addressing
-#ifdef DEBUG
-  sprintf(operandbytes, "%02X", READBYTE(PC));
-  sprintf(disassoperand, "%02x", READBYTE(PC));
-#endif
+  LOG_OPERANDBYTE(READBYTE(PC));
+  LOG_DISASSOPERAND(READBYTE(PC));
   curr_addr = (PC++);
 }
 
 void xi(cpu* CPU) {  // Indexed Indirect
   byte1 = READBYTE(PC++);
-#ifdef DEBUG
-  sprintf(operandbytes, "%02X", byte1);
-#endif
+  LOG_OPERANDBYTE(byte1);
+
   byte1     = byte1 + XR;
   curr_addr = READZEROWRAP(byte1);
-#ifdef DEBUG
-  sprintf(disassoperand, "[%04X]", curr_addr);
-#endif
+  LOG_DISASSOPERAND(curr_addr);
 }
 
 void ix(cpu* CPU) {  // Indirect Indexed
   byte1 = READBYTE(PC++);
-#ifdef DEBUG
-  sprintf(operandbytes, "%02X", byte1);
-#endif
+  LOG_OPERANDBYTE(byte1);
+
   curr_addr = READZEROWRAP(byte1);
   word1     = (curr_addr + YR);
   if (((curr_addr & 0xFF00) != (word1 & 0xFF00))) {
@@ -158,9 +140,7 @@ void ix(cpu* CPU) {  // Indirect Indexed
     clock_check++;
   }
   curr_addr = word1;
-#ifdef DEBUG
-  sprintf(disassoperand, "[%04X]", curr_addr);
-#endif
+  LOG_DISASSOPERAND(curr_addr);
 }
 
 #define ZP()   zp(CPU);
@@ -174,7 +154,6 @@ void ix(cpu* CPU) {  // Indirect Indexed
 #define INDY() ix(CPU);
 
 /**********************FLAGS******************/
-
 #define CFLAG  (1 << 0)
 #define ZFLAG  (1 << 1)
 #define IFLAG  (1 << 2)
@@ -183,9 +162,11 @@ void ix(cpu* CPU) {  // Indirect Indexed
 #define B2FLAG (1 << 5)
 #define VFLAG  (1 << 6)
 #define NFLAG  (1 << 7)
+
 int check_flag(cpu* CPU, int f) {  // check if flag is set or not
   return (PF & f);
 }
+
 void set_flag(cpu* CPU, unsigned int f) {  // sets flag
   PF = PF & (~(f));
   PF = PF | f;
@@ -199,6 +180,7 @@ void test_flag(cpu* CPU, bool condition, unsigned int f) {
 void clear_flag(cpu* CPU, uint8_t f) {  // clear flag
   PF = PF & ~(f);
 }
+
 void setznflag(cpu* CPU, uint8_t value) {
   PF = PF & ~(NFLAG | ZFLAG);
   if (!value)
@@ -957,6 +939,7 @@ void cpu_init(cpu* CPU) {
   CPU->clockcount = 7;
   CPU->innmi      = 0;
 }
+
 void cpu_run(cpu* CPU) {
   CPU->clockcount = 0;
   word1 = byte1 = byte2 = 0;
