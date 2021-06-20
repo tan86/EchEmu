@@ -5,6 +5,44 @@
 
 #include "cpu.h"
 #include "main.h"
+
+/*********************PPUCTRL MACROS************************/
+#define BASENAMETABLE (PPU->registers.PPUCTRL & 0x3)
+#define CTRLNMI       (PPU->registers.PPUCTRL & (1 << 7))
+#define CHRSIZE       (PPU->registers.PPUCTRL & (1 << 5))
+#define BGPATTERN     (PPU->registers.PPUCTRL & (1 << 4))
+#define CHRPATTERN    (PPU->registers.PPUCTRL & (1 << 3))
+#define INCMODE       (PPU->registers.PPUCTRL & (1 << 2))
+
+/*******************PPUMASK MACROS**************************/
+#define RED_EMPHASIZE   (PPU->registers.PPUMASK & (1 << 5))
+#define BLUE_EMPHASIZE  (PPU->registers.PPUMASK & (1 << 7))
+#define GREEN_EMPHASIZE (PPU->registers.PPUMASK & (1 << 6))
+#define SHOWCHR         (PPU->registers.PPUMASK & (1 << 4))
+#define SHOWBG          (PPU->registers.PPUMASK & (1 << 3))
+#define SHOWLFCHR       (PPU->registers.PPUMASK & (1 << 2))
+#define SHOWLFBG        (PPU->registers.PPUMASK & (1 << 1))
+#define SHOWGREY        (PPU->registers.PPUMASK & 0x1)
+#define RENDER          ((SHOWBG || SHOWCHR) && (PPU->registers.PPUSTATUS & (1 << 7)))
+
+/*******************PPUSTATUS MACROS*************************/
+#define VBLANK      (PPU->registers.PPUSTATUS & (1 << 7))
+#define CHR0HIT     (PPU->registers.PPUSTATUS & (1 << 6))
+#define CHROVERFLOW (PPU->registers.PPUSTATUS & (1 << 5))
+
+#define OAMADDRESS (PPU->registers.OAMADDR)
+#define OAMDAT     (PPU->registers.OAMDATA)
+#define SCROLL     (PPU->registers.PPUSCROLL)
+#define ADDRESS    (PPU->registers.PPUADDR)
+#define DAT        (PPU->registers.PPUDATA)
+
+#define IFCHANGEREG (PPU->registers.FLAG)
+
+#define VRAMADDR     PPU->vramaddr
+#define PALETTE(num) ppu_readb(PPU->ppumap, 0x3F00 | palent)
+
+#define FINEX PPU->finex
+
 // RGB values for our color palette
 uint8_t color_palette[64][3] = {
     84,  84,  84,  0,   30,  116, 8,   16,  144, 48,  0,   136, 68,  0,   100,

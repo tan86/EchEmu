@@ -1,12 +1,5 @@
 #ifndef CARTRIDGE_H
 #define CARTRIDGE_H
-/*Size declarations*/
-
-#define PRGROMSIZE     16 * 1024         // 16kb PRG_ROM
-#define CHRROMSIZE     8 * 1024          // 8kb CHR-ROM
-#define BATTERYRAMSIZE 2 * 16 * 16 * 16  // BATTERY RAM $6000-$7FFF
-#define TRAINERSIZE    2 * 16 * 16       // TRAINER $7000-$7FFF
-#define INESHEADERSIZE 16                // iNES Standard header size
 
 #include <stdbool.h>
 #include <stdint.h>
